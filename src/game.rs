@@ -103,7 +103,8 @@ impl<C: Controller> Game<C> {
 impl<C: Controller> Game<C> {
     pub fn start(&mut self) {
         while !self.turn.both_passed() {
-            self.board.get_strengths(self.turn.current, Range::RANGED);
+            // TODO: display
+            let _ = self.board.get_strengths();
             self.next_turn();
         }
     }

@@ -55,7 +55,7 @@ pub enum Ability {
 }
 
 bitflags! {
-    #[derive(Clone, Copy, Eq, PartialEq)]
+    #[derive(Clone, Copy, Eq, PartialEq, Hash)]
     pub struct Range: u8 {
         const MELEE  = 0b001;
         const RANGED = 0b010;

@@ -1,4 +1,4 @@
-use std::cell::Ref;
+use std::{cell::Ref, collections::HashMap};
 
 use crate::{
     card::{self, Card, Range, Special, Strength, Unit},
@@ -6,7 +6,7 @@ use crate::{
     side::Side,
 };
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Hash, Eq, PartialEq)]
 pub enum Player {
     P1,
     P2,
@@ -19,12 +19,13 @@ pub struct Board {
 }
 
 impl Board {
-    pub fn get_strengths(&self, player: Player, range: Range) -> Ref<'_, Vec<Strength>> {
-        match player {
-            Player::P1 => &self.player1,
-            Player::P2 => &self.player2,
-        }
-        .get_strengths(range)
+    pub fn get_strengths(&self) -> HashMap<Player, HashMap<Range, Ref<'_, Vec<Strength>>>> {
+        let mut sides = HashMap::new();
+
+        sides.insert(Player::P1, self.player1.get_strengths());
+        sides.insert(Player::P2, self.player2.get_strengths());
+
+        sides
     }
 }
 
@@ -101,7 +102,11 @@ mod test {
 
         board.put(P1, Card::unit(5, Range::MELEE));
 
-        assert!(vec![Strength::Regular(5)] == *board.get_strengths(P1, Range::MELEE));
+        let sides = board.get_strengths();
+        let rows = sides.get(&P1).unwrap();
+        let row = rows.get(&Range::MELEE).unwrap();
+
+        assert_eq!(**row, vec![Strength::Regular(5)]);
     }
 
     #[test]
@@ -142,13 +147,18 @@ mod test {
             board.put(P1, card);
         }
 
-        assert!(
+        let sides = board.get_strengths();
+        let rows = sides.get(&P1).unwrap();
+        let row = rows.get(&Range::MELEE).unwrap();
+
+        assert_eq!(
+            **row,
             vec![
                 Strength::Regular(7),
                 Strength::Regular(11),
                 Strength::Hero(7),
                 Strength::Hero(10)
-            ] == *board.get_strengths(P1, Range::MELEE)
+            ]
         );
     }
 
@@ -181,10 +191,11 @@ mod test {
             board.put(P1, card);
         }
 
-        assert!(
-            vec![Strength::Regular(10), Strength::Regular(2)]
-                == *board.get_strengths(P1, Range::MELEE)
-        );
+        let sides = board.get_strengths();
+        let rows = sides.get(&P1).unwrap();
+        let row = rows.get(&Range::MELEE).unwrap();
+
+        assert_eq!(**row, vec![Strength::Regular(10), Strength::Regular(2)]);
     }
 
     #[test]
@@ -216,13 +227,18 @@ mod test {
             board.put(P1, card);
         }
 
-        assert!(
+        let sides = board.get_strengths();
+        let rows = sides.get(&P1).unwrap();
+        let row = rows.get(&Range::MELEE).unwrap();
+
+        assert_eq!(
+            **row,
             vec![
                 Strength::Regular(8),
                 Strength::Regular(5),
                 Strength::Hero(7),
                 Strength::Regular(8)
-            ] == *board.get_strengths(P1, Range::MELEE)
+            ]
         );
     }
 
@@ -241,14 +257,19 @@ mod test {
             board.put(P1, card);
         }
 
-        assert!(
+        let sides = board.get_strengths();
+        let rows = sides.get(&P1).unwrap();
+        let row = rows.get(&Range::MELEE).unwrap();
+
+        assert_eq!(
+            **row,
             vec![
                 Strength::Regular(9),
                 Strength::Regular(6),
                 Strength::Hero(7),
                 Strength::Regular(9),
                 Strength::Regular(10)
-            ] == *board.get_strengths(P1, Range::MELEE)
+            ]
         );
     }
 
@@ -275,7 +296,12 @@ mod test {
             board.put(P1, card);
         }
 
-        assert!(
+        let sides = board.get_strengths();
+        let rows = sides.get(&P1).unwrap();
+        let row = rows.get(&Range::MELEE).unwrap();
+
+        assert_eq!(
+            **row,
             vec![
                 Strength::Regular(14),
                 Strength::Hero(7),
@@ -287,7 +313,7 @@ mod test {
                 Strength::Regular(28),
                 Strength::Regular(28),
                 Strength::Regular(4),
-            ] == *board.get_strengths(P1, Range::MELEE)
+            ]
         );
     }
 
@@ -311,9 +337,11 @@ mod test {
                 board.put(P1, card);
             }
 
-            assert!(
-                vec![Strength::Regular(1), Strength::Hero(10)] == *board.get_strengths(P1, range)
-            );
+            let sides = board.get_strengths();
+            let rows = sides.get(&P1).unwrap();
+            let row = rows.get(&range).unwrap();
+
+            assert_eq!(**row, vec![Strength::Regular(1), Strength::Hero(10)]);
         }
     }
 
@@ -338,9 +366,11 @@ mod test {
                 board.put(P1, card);
             }
 
-            assert!(
-                vec![Strength::Regular(1), Strength::Hero(10)] == *board.get_strengths(P1, range)
-            );
+            let sides = board.get_strengths();
+            let rows = sides.get(&P1).unwrap();
+            let row = rows.get(&range).unwrap();
+
+            assert_eq!(**row, vec![Strength::Regular(1), Strength::Hero(10)]);
         }
     }
 
@@ -364,9 +394,11 @@ mod test {
                 board.put(P1, card);
             }
 
-            assert!(
-                vec![Strength::Regular(5), Strength::Hero(10)] == *board.get_strengths(P1, range)
-            );
+            let sides = board.get_strengths();
+            let rows = sides.get(&P1).unwrap();
+            let row = rows.get(&range).unwrap();
+
+            assert_eq!(**row, vec![Strength::Regular(5), Strength::Hero(10)]);
         }
     }
 
@@ -384,9 +416,11 @@ mod test {
                 board.put(P1, card);
             }
 
-            assert!(
-                vec![Strength::Regular(5), Strength::Hero(10)] == *board.get_strengths(P1, range)
-            );
+            let sides = board.get_strengths();
+            let rows = sides.get(&P1).unwrap();
+            let row = rows.get(&range).unwrap();
+
+            assert_eq!(**row, vec![Strength::Regular(5), Strength::Hero(10)]);
         }
     }
 
@@ -410,15 +444,20 @@ mod test {
                 board.put(P1, card);
             }
 
-            assert!(
-                vec![Strength::Regular(1), Strength::Hero(10)] == *board.get_strengths(P1, range)
-            );
+            let sides = board.get_strengths();
+            let rows = sides.get(&P1).unwrap();
+            let row = rows.get(&range).unwrap();
 
+            assert_eq!(**row, vec![Strength::Regular(1), Strength::Hero(10)]);
+
+            drop(sides);
             board.put(P1, Card::Special(Special::Weather(Weather::ClearWeather)));
 
-            assert!(
-                vec![Strength::Regular(5), Strength::Hero(10)] == *board.get_strengths(P1, range)
-            );
+            let sides = board.get_strengths();
+            let rows = sides.get(&P1).unwrap();
+            let row = rows.get(&range).unwrap();
+
+            assert_eq!(**row, vec![Strength::Regular(5), Strength::Hero(10)]);
         }
     }
 
@@ -446,7 +485,12 @@ mod test {
             board.put(P1, card);
         }
 
-        assert!(
+        let sides = board.get_strengths();
+        let rows = sides.get(&P1).unwrap();
+        let row = rows.get(&Range::MELEE).unwrap();
+
+        assert_eq!(
+            **row,
             vec![
                 Strength::Regular(6),
                 Strength::Hero(7),
@@ -458,7 +502,7 @@ mod test {
                 Strength::Regular(10),
                 Strength::Regular(10),
                 Strength::Regular(3),
-            ] == *board.get_strengths(P1, Range::MELEE)
+            ]
         );
     }
 }

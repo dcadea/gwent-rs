@@ -1,4 +1,4 @@
-use std::cell::Ref;
+use std::{cell::Ref, collections::HashMap};
 
 use crate::{
     card::{Range, Special, Strength, Unit, Weather},
@@ -22,14 +22,14 @@ impl Default for Side {
 }
 
 impl Side {
-    pub fn get_strengths(&self, range: Range) -> Ref<'_, Vec<Strength>> {
-        match range {
-            Range::MELEE => &self.melee,
-            Range::RANGED => &self.ranged,
-            Range::SIEGE => &self.siege,
-            _ => unreachable!(),
-        }
-        .get_strengths()
+    pub fn get_strengths(&self) -> HashMap<Range, Ref<'_, Vec<Strength>>> {
+        let mut rows = HashMap::new();
+
+        rows.insert(Range::MELEE, self.melee.get_strengths());
+        rows.insert(Range::RANGED, self.ranged.get_strengths());
+        rows.insert(Range::SIEGE, self.siege.get_strengths());
+
+        rows
     }
 }
 
