@@ -1,6 +1,9 @@
+use std::thread::current;
+
 use crate::{
     board::{Board, Player},
     card::{Card, Group, Range, Unit},
+    deck::Cards,
 };
 
 pub struct Turn {
@@ -26,12 +29,30 @@ impl Turn {
 }
 
 pub enum Action {
+    /// Just play a card
     PlayCard(Card),
+
+    /// Only happens when [`Range::AGILE`] is played
+    /// Select a row when agile unit card is placed
     Agile(Unit),
+
+    /// Result of ability [`crate::card::Ability::Medic`]
+    /// Return a card from discard pile
     Medic,
+
+    /// Find all [`crate::card::Ability::Muster`] cards of a kind in both hand and deck
+    /// and play immediately
     Muster(Group),
+
+    /// Discard strongest non-hero units from the board
+    /// If [`Range::ALL`], take into account all ranges from both players
+    /// Otherwise discard units only on the opposite side on given [`Range`]
     Scorch(Range),
+
+    /// Result of ability [`crate::card::Ability::Spy`]
+    /// Take two cards from deck
     Spy,
+
     Berserker,
     Mardrome(Range),
     CommandersHorn,
@@ -43,6 +64,9 @@ pub struct Game {
     turn: Turn,
     board: Board,
     actions: Vec<Action>,
+
+    p1: Cards,
+    p2: Cards,
 }
 
 impl Game {
@@ -60,7 +84,8 @@ impl Game {
         while let Some(action) = self.actions.pop() {
             match action {
                 Action::PlayCard(card) => {
-                    self.board.put(current, card);
+                    let action = self.board.put(current, card);
+                    self.actions.push(action);
                 }
                 Action::Agile(unit) => {
                     let range = self.select_agile_range();
@@ -70,9 +95,9 @@ impl Game {
                     let card = self.restore_from_pile();
                     self.actions.push(Action::PlayCard(card));
                 }
-                Action::Muster(_) => todo!(),
+                Action::Muster(group) => self.play_muster(group),
                 Action::Scorch(range) => todo!(),
-                Action::Spy => todo!(),
+                Action::Spy => self.pick_from_deck(2),
                 Action::Berserker => todo!(),
                 Action::Mardrome(range) => todo!(),
                 Action::CommandersHorn => todo!(),
@@ -88,5 +113,24 @@ impl Game {
 
     fn restore_from_pile(&self) -> Card {
         todo!("user selects a card from pile")
+    }
+
+    fn play_muster(&mut self, group: Group) {
+        let current = self.turn.current;
+        let cards = match current {
+            Player::P1 => self.p1.pick_muster(group),
+            Player::P2 => self.p2.pick_muster(group),
+        };
+
+        cards.into_iter().for_each(|card| {
+            self.board.put(current, card);
+        });
+    }
+
+    fn pick_from_deck(&mut self, num: usize) {
+        match self.turn.current {
+            Player::P1 => self.p1.pick_from_deck(num),
+            Player::P2 => self.p2.pick_from_deck(num),
+        }
     }
 }

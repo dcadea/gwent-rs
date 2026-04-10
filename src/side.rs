@@ -1,5 +1,7 @@
+use std::cell::Ref;
+
 use crate::{
-    card::{Range, Special, Unit, Weather},
+    card::{Range, Strength, Unit, Weather},
     row::Row,
 };
 
@@ -16,6 +18,18 @@ impl Default for Side {
             ranged: Row::new(Range::RANGED),
             siege: Row::new(Range::SIEGE),
         }
+    }
+}
+
+impl Side {
+    pub fn get_strengths(&self, range: Range) -> Ref<'_, Vec<Strength>> {
+        match range {
+            Range::MELEE => &self.melee,
+            Range::RANGED => &self.ranged,
+            Range::SIEGE => &self.siege,
+            _ => unreachable!(),
+        }
+        .get_strengths()
     }
 }
 

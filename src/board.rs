@@ -1,7 +1,7 @@
-use std::collections::HashSet;
+use std::{cell::Ref, collections::HashSet};
 
 use crate::{
-    card::{self, Card, Range, Unit, Weather},
+    card::{self, Card, Range, Strength, Unit, Weather},
     game::Action,
     side::Side,
 };
@@ -17,6 +17,16 @@ pub struct Board {
     player1: Side,
     player2: Side,
     weather: HashSet<Weather>,
+}
+
+impl Board {
+    pub fn get_strengths(&self, player: Player, range: Range) -> Ref<'_, Vec<Strength>> {
+        match player {
+            Player::P1 => &self.player1,
+            Player::P2 => &self.player2,
+        }
+        .get_strengths(range)
+    }
 }
 
 impl Board {
@@ -66,5 +76,381 @@ impl Board {
             Player::P2 => &mut self.player2,
         }
         .put_agile_unit(unit, range);
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        board::{Board, Player::P1},
+        card::{Ability, Card, Range, Special, Strength, Unit, Weather},
+        row::Row,
+    };
+
+    #[test]
+    fn should_put_regular_unit() {
+        let mut board = Board::default();
+
+        board.put(P1, Card::unit(5, Range::MELEE));
+
+        assert!(vec![Strength::Regular(5)] == *board.get_strengths(P1, Range::MELEE));
+    }
+
+    #[test]
+    fn should_put_agile_unit_on_melee_row() {
+        // TODO:
+        // let mut board = Board::default();
+        // board.put(
+        //     P1,
+        //     Card::Unit(Unit::new(Strength::Regular(5), Ability::None, Range::AGILE)),
+        // );
+
+        // assert!(vec![Strength::Regular(5)] == *board.get_strengths(P1, Range::MELEE));
+    }
+
+    #[test]
+    fn should_put_agile_unit_on_ranged_row() {
+        // TODO:
+        // let mut board = Board::default();
+        // board.put(
+        //     P1,
+        //     Card::Unit(Unit::new(Strength::Regular(5), Ability::None, Range::AGILE)),
+        // );
+
+        // assert!(vec![Strength::Regular(5)] == *board.get_strengths(P1, Range::MELEE));
+    }
+
+    #[test]
+    fn should_apply_morale_boost_twice() {
+        let cards = [
+            Card::unit(5, Range::MELEE),
+            Card::the_unit(10, Range::MELEE, Ability::MoraleBoost),
+            Card::hero(7, Range::MELEE),
+            Card::the_hero(10, Range::MELEE, Ability::MoraleBoost),
+        ];
+
+        let mut board = Board::default();
+        for card in cards {
+            board.put(P1, card);
+        }
+
+        assert!(
+            vec![
+                Strength::Regular(7),
+                Strength::Regular(11),
+                Strength::Hero(7),
+                Strength::Hero(10)
+            ] == *board.get_strengths(P1, Range::MELEE)
+        );
+    }
+
+    #[test]
+    fn should_apply_commanders_horn() {
+        // TODO
+        // let mut board = Board::default();
+        // board.put(
+        //     P1,
+        //     Card::Unit(Unit::new(Strength::Regular(5), Ability::None, Range::MELEE)),
+        // );
+        // board.put(P1, Card::Special(Special::CommandersHorn));
+        // board.put(
+        //     P1,
+        //     Card::Unit(Unit::new(Strength::Hero(7), Ability::None, Range::MELEE)),
+        // );
+
+        // assert!(vec![Strength::Regular(10), Strength::Hero(7)] == *row.get_strengths());
+    }
+
+    #[test]
+    fn should_apply_unit_commanders_horn() {
+        let cards = [
+            Card::unit(5, Range::MELEE),
+            Card::the_unit(2, Range::MELEE, Ability::CommandersHorn),
+        ];
+
+        let mut board = Board::default();
+        for card in cards {
+            board.put(P1, card);
+        }
+
+        assert!(
+            vec![Strength::Regular(10), Strength::Regular(2)]
+                == *board.get_strengths(P1, Range::MELEE)
+        );
+    }
+
+    #[test]
+    fn should_apply_unit_and_special_commanders_horns() {
+        // TODO
+        // let mut row = Row::new(Range::MELEE);
+        // row.put_unit(Unit::new(Strength::Regular(5), Ability::None, Range::MELEE));
+        // row.put_unit(Unit::new(
+        //     Strength::Regular(2),
+        //     Ability::CommandersHorn,
+        //     Range::MELEE,
+        // ));
+        // row.put_special(Special::CommandersHorn);
+
+        // assert!(vec![Strength::Regular(10), Strength::Regular(4)] == *row.get_strengths());
+    }
+
+    #[test]
+    fn should_apply_tight_bond() {
+        let cards = [
+            Card::the_unit(4, Range::MELEE, Ability::TightBond(1)),
+            Card::the_unit(5, Range::MELEE, Ability::TightBond(2)),
+            Card::hero(7, Range::MELEE),
+            Card::the_unit(4, Range::MELEE, Ability::TightBond(1)),
+        ];
+
+        let mut board = Board::default();
+        for card in cards {
+            board.put(P1, card);
+        }
+
+        assert!(
+            vec![
+                Strength::Regular(8),
+                Strength::Regular(5),
+                Strength::Hero(7),
+                Strength::Regular(8)
+            ] == *board.get_strengths(P1, Range::MELEE)
+        );
+    }
+
+    #[test]
+    fn should_apply_tight_bond_and_morale_boost() {
+        let cards = [
+            Card::the_unit(4, Range::MELEE, Ability::TightBond(1)),
+            Card::the_unit(5, Range::MELEE, Ability::TightBond(2)),
+            Card::hero(7, Range::MELEE),
+            Card::the_unit(4, Range::MELEE, Ability::TightBond(1)),
+            Card::the_unit(10, Range::MELEE, Ability::MoraleBoost),
+        ];
+
+        let mut board = Board::default();
+        for card in cards {
+            board.put(P1, card);
+        }
+
+        assert!(
+            vec![
+                Strength::Regular(9),
+                Strength::Regular(6),
+                Strength::Hero(7),
+                Strength::Regular(9),
+                Strength::Regular(10)
+            ] == *board.get_strengths(P1, Range::MELEE)
+        );
+    }
+
+    #[test]
+    fn should_apply_moral_boost_tight_bond_and_commanders_horn() {
+        let cards = [
+            Card::unit(5, Range::MELEE),
+            Card::hero(7, Range::MELEE),
+            Card::the_unit(6, Range::MELEE, Ability::MoraleBoost),
+            Card::the_hero(10, Range::MELEE, Ability::MoraleBoost),
+            Card::the_unit(5, Range::MELEE, Ability::TightBond(2)),
+            Card::the_unit(5, Range::MELEE, Ability::TightBond(2)),
+            Card::the_unit(4, Range::MELEE, Ability::TightBond(1)),
+            Card::the_unit(4, Range::MELEE, Ability::TightBond(1)),
+            Card::the_unit(4, Range::MELEE, Ability::TightBond(1)),
+            Card::the_unit(2, Range::MELEE, Ability::CommandersHorn),
+        ];
+
+        // TODO
+        // row.put_special(Special::CommandersHorn);
+
+        let mut board = Board::default();
+        for card in cards {
+            board.put(P1, card);
+        }
+
+        assert!(
+            vec![
+                Strength::Regular(14),
+                Strength::Hero(7),
+                Strength::Regular(14),
+                Strength::Hero(10),
+                Strength::Regular(24),
+                Strength::Regular(24),
+                Strength::Regular(28),
+                Strength::Regular(28),
+                Strength::Regular(28),
+                Strength::Regular(4),
+            ] == *board.get_strengths(P1, Range::MELEE)
+        );
+    }
+
+    #[test]
+    fn should_affect_units_by_weather() {
+        for (range, weather) in [
+            (Range::MELEE, Weather::BitingFrost),
+            (Range::RANGED, Weather::ImpenetrableFog),
+            (Range::RANGED, Weather::SkelligeStorm),
+            (Range::SIEGE, Weather::TorrentialRain),
+            (Range::SIEGE, Weather::SkelligeStorm),
+        ] {
+            let cards = [
+                Card::unit(5, range),
+                Card::hero(10, range),
+                Card::Special(Special::Weather(weather)),
+            ];
+
+            let mut board = Board::default();
+            for card in cards {
+                board.put(P1, card);
+            }
+
+            assert!(
+                vec![Strength::Regular(1), Strength::Hero(10)] == *board.get_strengths(P1, range)
+            );
+        }
+    }
+
+    #[test]
+    fn should_affect_units_by_weather_only_once() {
+        for (range, weather) in [
+            (Range::MELEE, Weather::BitingFrost),
+            (Range::RANGED, Weather::ImpenetrableFog),
+            (Range::RANGED, Weather::SkelligeStorm),
+            (Range::SIEGE, Weather::TorrentialRain),
+            (Range::SIEGE, Weather::SkelligeStorm),
+        ] {
+            let cards = [
+                Card::unit(5, range),
+                Card::hero(10, range),
+                Card::Special(Special::Weather(weather)),
+                Card::Special(Special::Weather(weather)),
+            ];
+
+            let mut board = Board::default();
+            for card in cards {
+                board.put(P1, card);
+            }
+
+            assert!(
+                vec![Strength::Regular(1), Strength::Hero(10)] == *board.get_strengths(P1, range)
+            );
+        }
+    }
+
+    #[test]
+    fn should_not_affect_units_by_weather() {
+        for (range, weather) in [
+            (Range::MELEE, Weather::ImpenetrableFog),
+            (Range::MELEE, Weather::SkelligeStorm),
+            (Range::MELEE, Weather::TorrentialRain),
+            (Range::RANGED, Weather::BitingFrost),
+            (Range::SIEGE, Weather::BitingFrost),
+        ] {
+            let cards = [
+                Card::unit(5, range),
+                Card::hero(10, range),
+                Card::Special(Special::Weather(weather)),
+            ];
+
+            let mut board = Board::default();
+            for card in cards {
+                board.put(P1, card);
+            }
+
+            assert!(
+                vec![Strength::Regular(5), Strength::Hero(10)] == *board.get_strengths(P1, range)
+            );
+        }
+    }
+
+    #[test]
+    fn should_not_affect_units_by_clear_weather() {
+        for range in [Range::MELEE, Range::RANGED, Range::SIEGE] {
+            let cards = [
+                Card::unit(5, range),
+                Card::hero(10, range),
+                Card::Special(Special::Weather(Weather::ClearWeather)),
+            ];
+
+            let mut board = Board::default();
+            for card in cards {
+                board.put(P1, card);
+            }
+
+            assert!(
+                vec![Strength::Regular(5), Strength::Hero(10)] == *board.get_strengths(P1, range)
+            );
+        }
+    }
+
+    #[test]
+    fn should_restore_units_strength_when_weather_is_cleared() {
+        for (range, weather) in [
+            (Range::MELEE, Weather::BitingFrost),
+            (Range::RANGED, Weather::ImpenetrableFog),
+            (Range::RANGED, Weather::SkelligeStorm),
+            (Range::SIEGE, Weather::TorrentialRain),
+            (Range::SIEGE, Weather::SkelligeStorm),
+        ] {
+            let cards = [
+                Card::unit(5, range),
+                Card::hero(10, range),
+                Card::Special(Special::Weather(weather)),
+            ];
+
+            let mut board = Board::default();
+            for card in cards {
+                board.put(P1, card);
+            }
+
+            assert!(
+                vec![Strength::Regular(1), Strength::Hero(10)] == *board.get_strengths(P1, range)
+            );
+
+            board.put(P1, Card::Special(Special::Weather(Weather::ClearWeather)));
+
+            assert!(
+                vec![Strength::Regular(5), Strength::Hero(10)] == *board.get_strengths(P1, range)
+            );
+        }
+    }
+
+    #[test]
+    fn should_apply_weather_when_moral_boost_tight_bond_and_commanders_horn() {
+        let cards = [
+            Card::Special(Special::Weather(Weather::BitingFrost)),
+            Card::unit(5, Range::MELEE),
+            Card::hero(7, Range::MELEE),
+            Card::the_unit(6, Range::MELEE, Ability::MoraleBoost),
+            Card::the_hero(10, Range::MELEE, Ability::MoraleBoost),
+            Card::the_unit(5, Range::MELEE, Ability::TightBond(2)),
+            Card::the_unit(5, Range::MELEE, Ability::TightBond(2)),
+            Card::the_unit(4, Range::MELEE, Ability::TightBond(1)),
+            Card::the_unit(4, Range::MELEE, Ability::TightBond(1)),
+            Card::the_unit(4, Range::MELEE, Ability::TightBond(1)),
+            Card::the_unit(2, Range::MELEE, Ability::CommandersHorn),
+        ];
+
+        // TODO:
+        // row.put_special(Special::CommandersHorn);
+
+        let mut board = Board::default();
+        for card in cards {
+            board.put(P1, card);
+        }
+
+        assert!(
+            vec![
+                Strength::Regular(6),
+                Strength::Hero(7),
+                Strength::Regular(4),
+                Strength::Hero(10),
+                Strength::Regular(8),
+                Strength::Regular(8),
+                Strength::Regular(10),
+                Strength::Regular(10),
+                Strength::Regular(10),
+                Strength::Regular(3),
+            ] == *board.get_strengths(P1, Range::MELEE)
+        );
     }
 }

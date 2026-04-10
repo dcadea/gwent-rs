@@ -2,6 +2,7 @@ use std::ops::{AddAssign, MulAssign};
 
 use bitflags::bitflags;
 
+#[derive(Clone)]
 pub enum Card {
     Unit(Unit),
     Special(Special),
@@ -29,6 +30,7 @@ impl Strength {
     }
 }
 
+#[derive(Clone)]
 pub struct Unit {
     pub strength: Strength,
     pub ability: Ability,
@@ -37,7 +39,7 @@ pub struct Unit {
 
 pub type Group = u8;
 
-#[derive(Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum Ability {
     CommandersHorn,
     Medic,
@@ -65,18 +67,18 @@ bitflags! {
 
 #[derive(Clone, Copy)]
 pub enum Special {
-    /// Doubles the strength of all [`crate::card::Card::Unit`] on its row
+    /// Doubles the strength of all [`Card::Unit`] on its row
     CommandersHorn,
 
-    /// Replace one [`crate::card::Card::Unit`] from the battlefield and return
+    /// Replace one [`Card::Unit`] from the battlefield and return
     /// to player's hand
     Decoy,
 
-    /// Triggers transformation of all [`crate::card::unit::Ability::Berserker`]
+    /// Triggers transformation of all [`Ability::Berserker`]
     /// cards on its row
     Mardrome,
 
-    /// Remove all [`crate::card::Card::Unit`] with the highest strength
+    /// Remove all [`Card::Unit`] with the highest strength
     /// from the entire battlefield
     Scorch,
 
@@ -84,18 +86,19 @@ pub enum Special {
     Weather(Weather),
 }
 
+/// Does not affect heroes
 #[derive(Clone, Copy, Hash, Eq, PartialEq)]
 pub enum Weather {
-    /// Sets the strength of all [`Melee`] units to 1
+    /// Sets the strength of all [`Range::MELEE`] units to 1
     BitingFrost,
 
-    /// Sets the strength of all [`Ranged`] units to 1
+    /// Sets the strength of all [`Range::RANGED`] units to 1
     ImpenetrableFog,
 
-    /// Sets the strength of all [`Siege`] units to 1
+    /// Sets the strength of all [`Range::SIEGE`] units to 1
     TorrentialRain,
 
-    /// Sets the strength of all [`Ranged`] and [`Siege`] units to 1
+    /// Sets the strength of all [`Range::RANGED`] and [`Range::SIEGE`] units to 1
     SkelligeStorm,
 
     /// Cancels all weather effects
@@ -117,7 +120,41 @@ impl Weather {
 
 #[cfg(test)]
 mod test {
-    use crate::card::{Ability, Range, Strength, Unit};
+    use crate::card::{Ability, Card, Range, Strength, Unit};
+
+    impl Card {
+        pub fn unit(strength: u8, range: Range) -> Self {
+            Self::Unit(Unit {
+                strength: Strength::Regular(strength),
+                ability: Ability::None,
+                range,
+            })
+        }
+
+        pub fn hero(strength: u8, range: Range) -> Self {
+            Self::Unit(Unit {
+                strength: Strength::Hero(strength),
+                ability: Ability::None,
+                range,
+            })
+        }
+
+        pub fn the_unit(strength: u8, range: Range, ability: Ability) -> Self {
+            Self::Unit(Unit {
+                strength: Strength::Regular(strength),
+                ability,
+                range,
+            })
+        }
+
+        pub fn the_hero(strength: u8, range: Range, ability: Ability) -> Self {
+            Self::Unit(Unit {
+                strength: Strength::Hero(strength),
+                ability,
+                range,
+            })
+        }
+    }
 
     impl Unit {
         pub fn new(strength: Strength, ability: Ability, range: Range) -> Self {
