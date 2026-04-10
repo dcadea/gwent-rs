@@ -13,8 +13,7 @@ pub struct Row {
     range: Range,
     units: Vec<Unit>,
     bad_weather: bool,
-    commanders_horn: bool,
-    mardrome: bool,
+    boost: Option<Special>,
     strengths: RefCell<Vec<Strength>>,
     is_dirty: Cell<bool>,
 }
@@ -25,8 +24,7 @@ impl Row {
             range,
             units: Vec::default(),
             bad_weather: false,
-            commanders_horn: false,
-            mardrome: false,
+            boost: Option::default(),
             strengths: RefCell::default(),
             is_dirty: Cell::default(),
         }
@@ -42,9 +40,12 @@ impl Row {
     }
 
     pub fn put_special(&mut self, special: Special) {
-        match special {
-            Special::CommandersHorn => self.commanders_horn = true,
-            Special::Mardrome => self.mardrome = true,
+        if self.boost.is_some() {
+            todo!("prevent from putting another boost on same row");
+        }
+
+        match &special {
+            Special::CommandersHorn | Special::Mardrome => self.boost = Some(special),
             _ => unreachable!(),
         }
 
@@ -61,7 +62,7 @@ impl Row {
         match weather {
             ClearWeather if !self.bad_weather => return,
             ClearWeather => self.bad_weather = false,
-            w if self.bad_weather => return,
+            _ if self.bad_weather => return,
             w if w.affects(self.range) => self.bad_weather = true,
             _ => return,
         }
@@ -85,7 +86,7 @@ impl Row {
 
         for (i, unit) in self.units.iter().enumerate() {
             strengths[i] = match unit.strength {
-                Strength::Regular(strength) if self.bad_weather => Strength::Regular(1),
+                Strength::Regular(_) if self.bad_weather => Strength::Regular(1),
                 strength => strength,
             };
         }
@@ -128,9 +129,10 @@ impl Row {
 
         let has_horn_unit = self.units.iter().any(|unit| unit.ability == CommandersHorn);
 
-        if self.commanders_horn || has_horn_unit {
+        let commanders_horn = matches!(self.boost, Some(Special::CommandersHorn));
+        if commanders_horn || has_horn_unit {
             for (i, unit) in self.units.iter().enumerate() {
-                if unit.ability == CommandersHorn && !self.commanders_horn {
+                if unit.ability == CommandersHorn && !commanders_horn {
                     continue;
                 }
                 strengths[i].mul_assign(2);

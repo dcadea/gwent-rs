@@ -1,7 +1,7 @@
 use std::cell::Ref;
 
 use crate::{
-    card::{Range, Strength, Unit, Weather},
+    card::{Range, Special, Strength, Unit, Weather},
     row::Row,
 };
 
@@ -57,5 +57,15 @@ impl Side {
         self.melee.put_weather(weather);
         self.ranged.put_weather(weather);
         self.siege.put_weather(weather);
+    }
+
+    pub fn put_row_boost(&mut self, boost: Special, range: Range) {
+        match range {
+            Range::MELEE => &mut self.melee,
+            Range::RANGED => &mut self.ranged,
+            Range::SIEGE => &mut self.siege,
+            _ => unreachable!(),
+        }
+        .put_special(boost);
     }
 }

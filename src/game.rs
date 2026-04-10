@@ -1,8 +1,8 @@
-use std::thread::current;
+use rand::{RngExt, rng};
 
 use crate::{
     board::{Board, Player},
-    card::{Card, Group, Range, Unit},
+    card::{Card, Group, Range, Special, Unit},
     deck::Cards,
 };
 
@@ -13,7 +13,15 @@ pub struct Turn {
 }
 
 impl Turn {
-    pub const fn next(&mut self) {
+    const fn new(current: Player) -> Self {
+        Self {
+            current,
+            p1_passed: false,
+            p2_passed: false,
+        }
+    }
+
+    const fn next(&mut self) {
         match (self.p1_passed, self.p2_passed) {
             (true, true) => {}
             (true, false) => self.current = Player::P2,
@@ -25,6 +33,10 @@ impl Turn {
                 };
             }
         }
+    }
+
+    const fn both_passed(&self) -> bool {
+        self.p1_passed && self.p2_passed
     }
 }
 
@@ -60,7 +72,9 @@ pub enum Action {
     None,
 }
 
-pub struct Game {
+pub struct Game<C: Controller> {
+    controller: C,
+
     turn: Turn,
     board: Board,
     actions: Vec<Action>,
@@ -69,13 +83,45 @@ pub struct Game {
     p2: Cards,
 }
 
-impl Game {
-    fn play_card(&mut self, i: usize) {
-        let card: Card = todo!("select card from hand");
+impl<C: Controller> Game<C> {
+    pub fn new(controller: C, p1: Cards, p2: Cards) -> Self {
+        let coin = rng().random_bool(0.5);
 
+        let turn = Turn::new(if coin { Player::P1 } else { Player::P2 });
+
+        Self {
+            controller,
+            turn,
+            board: Board::default(),
+            actions: Vec::default(),
+            p1,
+            p2,
+        }
+    }
+}
+
+impl<C: Controller> Game<C> {
+    pub fn start(&mut self) {
+        while !self.turn.both_passed() {
+            self.board.get_strengths(self.turn.current, Range::RANGED);
+            self.next_turn();
+        }
+    }
+
+    fn next_turn(&mut self) {
+        let card = self.pick_card();
         self.actions.push(Action::PlayCard(card));
 
         self.run_actions();
+    }
+
+    fn pick_card(&mut self) -> Card {
+        let i = self.controller.select_from_hand();
+        match self.turn.current {
+            Player::P1 => &mut self.p1,
+            Player::P2 => &mut self.p2,
+        }
+        .pick_card(i)
     }
 
     fn run_actions(&mut self) {
@@ -88,31 +134,48 @@ impl Game {
                     self.actions.push(action);
                 }
                 Action::Agile(unit) => {
-                    let range = self.select_agile_range();
+                    let range = self.controller.select_range();
                     self.board.put_agile_unit(current, unit, range);
                 }
                 Action::Medic => {
-                    let card = self.restore_from_pile();
-                    self.actions.push(Action::PlayCard(card));
+                    if let Some(card) = self.restore_from_pile() {
+                        self.actions.push(Action::PlayCard(card));
+                    }
                 }
                 Action::Muster(group) => self.play_muster(group),
-                Action::Scorch(range) => todo!(),
+                Action::Scorch(_range) => todo!(),
                 Action::Spy => self.pick_from_deck(2),
-                Action::Berserker => todo!(),
-                Action::Mardrome(range) => todo!(),
-                Action::CommandersHorn => todo!(),
+                Action::Berserker => todo!("check if mardrome is on that row and transform"),
+                Action::Mardrome(range) => {
+                    let range = if range == Range::ALL {
+                        self.controller.select_range()
+                    } else {
+                        range
+                    };
+
+                    self.board.put_row_boost(current, Special::Mardrome, range);
+                    // TODO: check if berserkers are on that row and transform
+                }
+                Action::CommandersHorn => {
+                    let range = self.controller.select_range();
+                    self.board
+                        .put_row_boost(current, Special::CommandersHorn, range);
+                }
                 Action::Decoy => todo!(),
                 Action::None => break,
             }
         }
+
+        self.turn.next();
     }
 
-    fn select_agile_range(&self) -> Range {
-        todo!("user selects MELEE or RANGED range")
-    }
-
-    fn restore_from_pile(&self) -> Card {
-        todo!("user selects a card from pile")
+    fn restore_from_pile(&mut self) -> Option<Card> {
+        let i = self.controller.select_from_pile();
+        match self.turn.current {
+            Player::P1 => &mut self.p1,
+            Player::P2 => &mut self.p2,
+        }
+        .restore_from_pile(i)
     }
 
     fn play_muster(&mut self, group: Group) {
@@ -133,4 +196,12 @@ impl Game {
             Player::P2 => self.p2.pick_from_deck(num),
         }
     }
+}
+
+pub trait Controller {
+    fn select_from_hand(&self) -> usize;
+
+    fn select_range(&self) -> Range;
+
+    fn select_from_pile(&self) -> usize;
 }

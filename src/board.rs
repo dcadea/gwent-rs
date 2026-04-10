@@ -1,7 +1,7 @@
-use std::{cell::Ref, collections::HashSet};
+use std::cell::Ref;
 
 use crate::{
-    card::{self, Card, Range, Strength, Unit, Weather},
+    card::{self, Card, Range, Special, Strength, Unit},
     game::Action,
     side::Side,
 };
@@ -16,7 +16,6 @@ pub enum Player {
 pub struct Board {
     player1: Side,
     player2: Side,
-    weather: HashSet<Weather>,
 }
 
 impl Board {
@@ -48,8 +47,10 @@ impl Board {
                 };
 
                 match (&action, player) {
-                    (Action::Spy, Player::P1) | (_, Player::P2) => &mut self.player2,
-                    (Action::Spy, Player::P2) | (_, Player::P1) => &mut self.player1,
+                    (Action::Spy, Player::P1) => &mut self.player2,
+                    (Action::Spy, Player::P2) => &mut self.player1,
+                    (_, Player::P1) => &mut self.player1,
+                    (_, Player::P2) => &mut self.player2,
                 }
                 .put_unit(unit);
 
@@ -77,14 +78,21 @@ impl Board {
         }
         .put_agile_unit(unit, range);
     }
+
+    pub fn put_row_boost(&mut self, player: Player, boost: Special, range: Range) {
+        match player {
+            Player::P1 => &mut self.player1,
+            Player::P2 => &mut self.player2,
+        }
+        .put_row_boost(boost, range);
+    }
 }
 
 #[cfg(test)]
 mod test {
     use crate::{
         board::{Board, Player::P1},
-        card::{Ability, Card, Range, Special, Strength, Unit, Weather},
-        row::Row,
+        card::{Ability, Card, Range, Special, Strength, Weather},
     };
 
     #[test]

@@ -1,12 +1,12 @@
 use rand::{rng, seq::SliceRandom};
 
-use crate::card::{Ability, Card, Group, Strength, Unit};
+use crate::card::{Ability, Card, Group, Strength};
 
 pub struct Cards {
     hand: Vec<Card>,
     deck: Vec<Card>,
     pile: Vec<Card>,
-    side: Vec<Card>,
+    _side: Vec<Card>,
 }
 
 impl Cards {
@@ -24,27 +24,23 @@ impl Cards {
             hand: hand.to_vec(),
             deck: remaining.to_vec(),
             pile: Vec::default(),
-            side: Vec::default(),
+            _side: Vec::default(),
         }
     }
 }
 
 impl Cards {
-    pub fn add_to_hand(&mut self, unit: Unit) {
-        self.hand.push(Card::Unit(unit));
-    }
-
     pub fn pick_card(&mut self, i: usize) -> Card {
         self.hand.swap_remove(i)
     }
 
-    pub fn restore_from_pile(&mut self, i: usize) -> Card {
+    pub fn restore_from_pile(&mut self, i: usize) -> Option<Card> {
         if let Some(Card::Unit(unit)) = self.pile.get(i)
             && matches!(unit.strength, Strength::Regular(_))
         {
-            self.pile.swap_remove(i)
+            Some(self.pile.swap_remove(i))
         } else {
-            panic!("only non-hero unit cards can be restored");
+            None
         }
     }
 
