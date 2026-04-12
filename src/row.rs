@@ -66,6 +66,28 @@ impl Row {
 
         self.is_dirty = true;
     }
+
+    pub fn put_scorch(&mut self, max_strength: u8) {
+        if self.is_dirty {
+            self.recalculate_strengths();
+        }
+
+        let mut was_discarded = false;
+
+        for i in self.units.len() - 1..=0 {
+            if let Strength::Regular(strength) = self.strengths[i]
+                && strength == max_strength
+            {
+                self.units.swap_remove(i);
+                self.strengths.swap_remove(i);
+                was_discarded = true;
+            }
+        }
+
+        if was_discarded {
+            self.is_dirty = true;
+        }
+    }
 }
 
 impl Row {
@@ -73,13 +95,20 @@ impl Row {
         &self.strengths
     }
 
-    pub fn update(&mut self) {
-        if self.is_dirty {
-            self.recalculate_strengths();
-        }
+    /// Returns max unit strength excluding heroes
+    pub fn get_max_strength(&self) -> Option<u8> {
+        self.strengths
+            .iter()
+            .filter(|s| matches!(s, Strength::Regular(_)))
+            .map(|s| s.get())
+            .max()
     }
 
-    fn recalculate_strengths(&mut self) {
+    pub fn recalculate_strengths(&mut self) {
+        if !self.is_dirty {
+            return;
+        }
+
         for (i, unit) in self.units.iter().enumerate() {
             self.strengths[i] = match unit.strength {
                 Strength::Regular(_) if self.bad_weather => Strength::Regular(1),

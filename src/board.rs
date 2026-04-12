@@ -24,9 +24,20 @@ impl Board {
         }
     }
 
-    pub fn update_all(&mut self) {
-        self.player1.update();
-        self.player2.update();
+    /// Returns max unit strength excluding heroes
+    fn get_max_strength(&self, range: Range) -> Option<u8> {
+        [
+            self.player1.get_max_strength(range),
+            self.player2.get_max_strength(range),
+        ]
+        .into_iter()
+        .flatten()
+        .max()
+    }
+
+    pub fn recalculate_strengths(&mut self) {
+        self.player1.recalculate_strengths();
+        self.player2.recalculate_strengths();
     }
 }
 
@@ -98,6 +109,41 @@ impl Board {
         }
         .put_row_boost(boost, range);
     }
+
+    pub fn put_scorch(&mut self, player: Player, range: Range) {
+        self.recalculate_strengths();
+
+        // Global scorch
+        if range == Range::ALL {
+            if let Some(max_strength) = self.get_max_strength(range) {
+                self.player1.put_scorch(max_strength, Range::ALL);
+                self.player2.put_scorch(max_strength, Range::ALL);
+            }
+        } else {
+            // Row target scorch
+            let total_row_strength = match player {
+                Player::P1 => &self.player2,
+                Player::P2 => &self.player1,
+            }
+            .get_total_strength(range);
+
+            // Applies only if total strength of row is >= 10
+            if total_row_strength >= 10 {
+                match player {
+                    Player::P1 => {
+                        if let Some(max_row_strength) = self.player2.get_max_strength(range) {
+                            self.player2.put_scorch(max_row_strength, range);
+                        }
+                    }
+                    Player::P2 => {
+                        if let Some(max_row_strength) = self.player1.get_max_strength(range) {
+                            self.player1.put_scorch(max_row_strength, range);
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 pub struct Strengths<'a> {
@@ -117,7 +163,7 @@ mod test {
         let mut board = Board::default();
 
         board.put(P1, Card::unit(5, Range::MELEE));
-        board.update_all();
+        board.recalculate_strengths();
 
         let row = board.get_strengths().p1.melee;
 
@@ -161,7 +207,7 @@ mod test {
         for card in cards {
             board.put(P1, card);
         }
-        board.update_all();
+        board.recalculate_strengths();
 
         let row = board.get_strengths().p1.melee;
 
@@ -204,7 +250,7 @@ mod test {
         for card in cards {
             board.put(P1, card);
         }
-        board.update_all();
+        board.recalculate_strengths();
 
         let row = board.get_strengths().p1.melee;
 
@@ -239,7 +285,7 @@ mod test {
         for card in cards {
             board.put(P1, card);
         }
-        board.update_all();
+        board.recalculate_strengths();
 
         let row = board.get_strengths().p1.melee;
 
@@ -268,7 +314,7 @@ mod test {
         for card in cards {
             board.put(P1, card);
         }
-        board.update_all();
+        board.recalculate_strengths();
 
         let row = board.get_strengths().p1.melee;
 
@@ -306,7 +352,7 @@ mod test {
         for card in cards {
             board.put(P1, card);
         }
-        board.update_all();
+        board.recalculate_strengths();
 
         let row = board.get_strengths().p1.melee;
 
@@ -346,7 +392,7 @@ mod test {
             for card in cards {
                 board.put(P1, card);
             }
-            board.update_all();
+            board.recalculate_strengths();
 
             let strengths = board.get_strengths();
             let row = strengths.p1.get(range);
@@ -375,7 +421,7 @@ mod test {
             for card in cards {
                 board.put(P1, card);
             }
-            board.update_all();
+            board.recalculate_strengths();
 
             let strengths = board.get_strengths();
             let row = strengths.p1.get(range);
@@ -403,7 +449,7 @@ mod test {
             for card in cards {
                 board.put(P1, card);
             }
-            board.update_all();
+            board.recalculate_strengths();
 
             let strengths = board.get_strengths();
             let row = strengths.p1.get(range);
@@ -425,7 +471,7 @@ mod test {
             for card in cards {
                 board.put(P1, card);
             }
-            board.update_all();
+            board.recalculate_strengths();
 
             let strengths = board.get_strengths();
             let row = strengths.p1.get(range);
@@ -453,7 +499,7 @@ mod test {
             for card in cards {
                 board.put(P1, card);
             }
-            board.update_all();
+            board.recalculate_strengths();
 
             let strengths = board.get_strengths();
             let row = strengths.p1.get(range);
@@ -461,7 +507,7 @@ mod test {
             assert_eq!(row, vec![Strength::Regular(1), Strength::Hero(10)]);
 
             board.put(P1, Card::Special(Special::Weather(Weather::ClearWeather)));
-            board.update_all();
+            board.recalculate_strengths();
 
             let strengths = board.get_strengths();
             let row = strengths.p1.get(range);
@@ -493,7 +539,7 @@ mod test {
         for card in cards {
             board.put(P1, card);
         }
-        board.update_all();
+        board.recalculate_strengths();
 
         let row = board.get_strengths().p1.melee;
 

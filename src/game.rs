@@ -144,7 +144,7 @@ impl<C: Controller> Game<C> {
                     }
                 }
                 Action::Muster(group) => self.play_muster(group),
-                Action::Scorch(_range) => todo!(),
+                Action::Scorch(range) => self.board.put_scorch(current, range),
                 Action::Spy => self.pick_from_deck(2),
                 Action::Berserker => todo!("check if mardrome is on that row and transform"),
                 Action::Mardrome(range) => {
@@ -163,13 +163,11 @@ impl<C: Controller> Game<C> {
                         .put_row_boost(current, Special::CommandersHorn, range);
                 }
                 Action::Decoy => todo!(),
-                Action::None => {
-                    self.board.update_all();
-                    break;
-                }
+                Action::None => break,
             }
         }
 
+        self.board.recalculate_strengths();
         self.turn.next();
     }
 

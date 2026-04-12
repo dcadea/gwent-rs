@@ -15,6 +15,11 @@ pub enum Strength {
 }
 
 impl Strength {
+    pub const fn get(self) -> u8 {
+        match self {
+            Self::Hero(strength) | Self::Regular(strength) => strength,
+        }
+    }
     pub fn add_assign(&mut self, rhs: u8) {
         match self {
             Self::Hero(_) => {}

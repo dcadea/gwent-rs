@@ -28,10 +28,40 @@ impl Side {
         }
     }
 
-    pub fn update(&mut self) {
-        self.melee.update();
-        self.ranged.update();
-        self.siege.update();
+    /// Returns max unit strength excluding heroes
+    pub fn get_max_strength(&self, range: Range) -> Option<u8> {
+        match range {
+            Range::ALL => [
+                self.melee.get_max_strength(),
+                self.ranged.get_max_strength(),
+                self.siege.get_max_strength(),
+            ]
+            .into_iter()
+            .flatten()
+            .max(),
+            Range::MELEE => self.melee.get_max_strength(),
+            Range::RANGED => self.ranged.get_max_strength(),
+            Range::SIEGE => self.siege.get_max_strength(),
+            _ => unreachable!(),
+        }
+    }
+
+    /// Returns total unit strength on the given row
+    pub fn get_total_strength(&self, range: Range) -> u8 {
+        let row = match range {
+            Range::MELEE => &self.melee,
+            Range::RANGED => &self.ranged,
+            Range::SIEGE => &self.siege,
+            _ => unreachable!(),
+        };
+
+        row.get_strengths().iter().map(|s| s.get()).sum()
+    }
+
+    pub fn recalculate_strengths(&mut self) {
+        self.melee.recalculate_strengths();
+        self.ranged.recalculate_strengths();
+        self.siege.recalculate_strengths();
     }
 }
 
@@ -69,6 +99,17 @@ impl Side {
             _ => unreachable!(),
         }
         .put_special(boost);
+    }
+
+    pub fn put_scorch(&mut self, max_strength: u8, range: Range) {
+        match range {
+            Range::ALL => {
+                self.melee.put_scorch(max_strength);
+                self.ranged.put_scorch(max_strength);
+                self.siege.put_scorch(max_strength);
+            }
+            _ => todo!(),
+        }
     }
 }
 
