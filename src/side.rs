@@ -39,23 +39,17 @@ impl Side {
             .into_iter()
             .flatten()
             .max(),
-            Range::MELEE => self.melee.get_max_strength(),
-            Range::RANGED => self.ranged.get_max_strength(),
-            Range::SIEGE => self.siege.get_max_strength(),
-            _ => unreachable!(),
+            range => self.get_row(range).get_max_strength(),
         }
     }
 
     /// Returns total unit strength on the given row
     pub fn get_total_row_strength(&self, range: Range) -> u8 {
-        let row = match range {
-            Range::MELEE => &self.melee,
-            Range::RANGED => &self.ranged,
-            Range::SIEGE => &self.siege,
-            _ => unreachable!(),
-        };
-
-        row.get_strengths().iter().map(|s| s.get()).sum()
+        self.get_row(range)
+            .get_strengths()
+            .iter()
+            .map(|s| s.get())
+            .sum()
     }
 
     pub fn recalculate_strengths(&mut self) {
@@ -67,22 +61,11 @@ impl Side {
 
 impl Side {
     pub fn put_unit(&mut self, unit: Unit) {
-        match unit.range {
-            Range::MELEE => &mut self.melee,
-            Range::RANGED => &mut self.ranged,
-            Range::SIEGE => &mut self.siege,
-            _ => unreachable!(),
-        }
-        .put_unit(unit);
+        self.get_row_mut(unit.range).put_unit(unit);
     }
 
     pub fn put_agile_unit(&mut self, unit: Unit, range: Range) {
-        match range {
-            Range::MELEE => &mut self.melee,
-            Range::RANGED => &mut self.ranged,
-            _ => unreachable!(),
-        }
-        .put_unit(unit);
+        self.get_row_mut(range).put_unit(unit);
     }
 
     pub fn put_weather(&mut self, weather: Weather) {
@@ -92,13 +75,7 @@ impl Side {
     }
 
     pub fn put_row_boost(&mut self, boost: Special, range: Range) {
-        match range {
-            Range::MELEE => &mut self.melee,
-            Range::RANGED => &mut self.ranged,
-            Range::SIEGE => &mut self.siege,
-            _ => unreachable!(),
-        }
-        .put_special(boost);
+        self.get_row_mut(range).put_special(boost);
     }
 
     pub fn put_scorch(&mut self, max_strength: u8, range: Range) {
@@ -108,7 +85,31 @@ impl Side {
                 self.ranged.put_scorch(max_strength);
                 self.siege.put_scorch(max_strength);
             }
-            _ => todo!(),
+            range => self.get_row_mut(range).put_scorch(max_strength),
+        }
+    }
+
+    pub fn remove_unit(&mut self, range: Range, i: usize) -> Unit {
+        self.get_row_mut(range).remove_unit(i)
+    }
+}
+
+impl Side {
+    fn get_row(&self, range: Range) -> &Row {
+        match range {
+            Range::MELEE => &self.melee,
+            Range::RANGED => &self.ranged,
+            Range::SIEGE => &self.siege,
+            _ => unreachable!(),
+        }
+    }
+
+    fn get_row_mut(&mut self, range: Range) -> &mut Row {
+        match range {
+            Range::MELEE => &mut self.melee,
+            Range::RANGED => &mut self.ranged,
+            Range::SIEGE => &mut self.siege,
+            _ => unreachable!(),
         }
     }
 }

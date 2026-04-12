@@ -118,7 +118,7 @@ impl<C: Controller> Game<C> {
 
     fn pick_card(&mut self) -> Card {
         let i = self.controller.select_from_hand();
-        self.get_current_player_cards().pick_card(i)
+        self.get_current_player_cards_mut().pick_card(i)
     }
 
     fn run_actions(&mut self) {
@@ -158,7 +158,7 @@ impl<C: Controller> Game<C> {
                     self.board
                         .put_row_boost(current, Special::CommandersHorn, range);
                 }
-                Action::Decoy => todo!(),
+                Action::Decoy => self.restore_from_board(),
                 Action::None => break,
             }
         }
@@ -169,13 +169,20 @@ impl<C: Controller> Game<C> {
 
     fn restore_from_pile(&mut self) -> Option<Card> {
         let i = self.controller.select_from_pile();
-        self.get_current_player_cards().restore_from_pile(i)
+        self.get_current_player_cards_mut().restore_from_pile(i)
+    }
+
+    fn restore_from_board(&mut self) {
+        if let Some((range, i)) = self.controller.select_from_board() {
+            let unit = self.board.remove_unit(self.turn.current, range, i);
+            self.get_current_player_cards_mut().add_unit(unit);
+        }
     }
 
     fn play_muster(&mut self, group: Group) {
         let current = self.turn.current;
 
-        let cards = self.get_current_player_cards().pick_muster(group);
+        let cards = self.get_current_player_cards_mut().pick_muster(group);
 
         for card in cards {
             self.board.put(current, card);
@@ -183,10 +190,10 @@ impl<C: Controller> Game<C> {
     }
 
     fn pick_from_deck(&mut self, num: usize) {
-        self.get_current_player_cards().pick_from_deck(num)
+        self.get_current_player_cards_mut().pick_from_deck(num);
     }
 
-    fn get_current_player_cards(&mut self) -> &mut Cards {
+    const fn get_current_player_cards_mut(&mut self) -> &mut Cards {
         match self.turn.current {
             Player::P1 => &mut self.p1,
             Player::P2 => &mut self.p2,
@@ -200,4 +207,6 @@ pub trait Controller {
     fn select_range(&self) -> Range;
 
     fn select_from_pile(&self) -> usize;
+
+    fn select_from_board(&self) -> Option<(Range, usize)>;
 }

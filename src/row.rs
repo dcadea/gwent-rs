@@ -88,6 +88,13 @@ impl Row {
             self.is_dirty = true;
         }
     }
+
+    pub fn remove_unit(&mut self, i: usize) -> Unit {
+        self.strengths.swap_remove(i);
+        let unit = self.units.swap_remove(i);
+        self.is_dirty = true;
+        unit
+    }
 }
 
 impl Row {

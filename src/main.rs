@@ -59,6 +59,20 @@ impl Controller for ConsoleController {
 
         input.trim_end().parse::<usize>().unwrap()
     }
+
+    fn select_from_board(&self) -> Option<(Range, usize)> {
+        let range = self.select_range();
+
+        println!("Select card from row: ");
+
+        let mut input = String::new();
+
+        io::stdin().read_line(&mut input).unwrap();
+
+        let i = input.trim_end().parse::<usize>().unwrap();
+
+        Some((range, i))
+    }
 }
 
 fn test_cards() -> Cards {

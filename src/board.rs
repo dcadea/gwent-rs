@@ -77,24 +77,28 @@ impl Board {
             let total_row_strength = opponent_side.get_total_row_strength(range);
 
             // Applies only if total strength of row is >= 10
-            if total_row_strength >= 10 {
-                if let Some(max_row_strength) = opponent_side.get_max_row_strength(range) {
-                    opponent_side.put_scorch(max_row_strength, range);
-                }
+            if total_row_strength >= 10
+                && let Some(max_row_strength) = opponent_side.get_max_row_strength(range)
+            {
+                opponent_side.put_scorch(max_row_strength, range);
             }
         }
+    }
+
+    pub fn remove_unit(&mut self, player: Player, range: Range, i: usize) -> Unit {
+        self.get_current_player_mut(player).remove_unit(range, i)
     }
 }
 
 impl Board {
-    fn get_current_player_mut(&mut self, player: Player) -> &mut Side {
+    const fn get_current_player_mut(&mut self, player: Player) -> &mut Side {
         match player {
             Player::P1 => &mut self.player1,
             Player::P2 => &mut self.player2,
         }
     }
 
-    fn get_opponent_player_mut(&mut self, player: Player) -> &mut Side {
+    const fn get_opponent_player_mut(&mut self, player: Player) -> &mut Side {
         match player {
             Player::P1 => &mut self.player2,
             Player::P2 => &mut self.player1,

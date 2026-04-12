@@ -1,6 +1,6 @@
 use rand::{rng, seq::SliceRandom};
 
-use crate::card::{Ability, Card, Group, Strength};
+use crate::card::{Ability, Card, Group, Strength, Unit};
 
 pub struct Cards {
     hand: Vec<Card>,
@@ -75,6 +75,10 @@ impl Cards {
 
         muster
     }
+
+    pub fn add_unit(&mut self, unit: Unit) {
+        self.hand.push(Card::Unit(unit));
+    }
 }
 
 pub struct Deck {
@@ -92,3 +96,13 @@ impl Deck {
         self.cards.len()
     }
 }
+
+// TODO
+// struct Library {
+//     monsters: Vec<Card>,
+//     nilfgaard: Vec<Card>,
+//     northern_realms: Vec<Card>,
+//     skoiatael: Vec<Card>,
+//     skellige: Vec<Card>,
+//     neutral: Vec<Card>,
+// }
