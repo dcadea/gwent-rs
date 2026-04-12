@@ -163,7 +163,10 @@ impl<C: Controller> Game<C> {
                         .put_row_boost(current, Special::CommandersHorn, range);
                 }
                 Action::Decoy => todo!(),
-                Action::None => break,
+                Action::None => {
+                    self.board.update_all();
+                    break;
+                }
             }
         }
 
@@ -186,9 +189,9 @@ impl<C: Controller> Game<C> {
             Player::P2 => self.p2.pick_muster(group),
         };
 
-        cards.into_iter().for_each(|card| {
+        for card in cards {
             self.board.put(current, card);
-        });
+        }
     }
 
     fn pick_from_deck(&mut self, num: usize) {

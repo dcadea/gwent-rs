@@ -1,7 +1,4 @@
-use std::{
-    cell::{Cell, Ref, RefCell},
-    collections::HashMap,
-};
+use std::collections::HashMap;
 
 use crate::card::{
     Ability::{CommandersHorn, MoraleBoost, TightBond},
@@ -14,8 +11,8 @@ pub struct Row {
     units: Vec<Unit>,
     bad_weather: bool,
     boost: Option<Special>,
-    strengths: RefCell<Vec<Strength>>,
-    is_dirty: Cell<bool>,
+    strengths: Vec<Strength>,
+    is_dirty: bool,
 }
 
 impl Row {
@@ -25,8 +22,8 @@ impl Row {
             units: Vec::default(),
             bad_weather: false,
             boost: Option::default(),
-            strengths: RefCell::default(),
-            is_dirty: Cell::default(),
+            strengths: Vec::default(),
+            is_dirty: false,
         }
     }
 }
@@ -34,9 +31,9 @@ impl Row {
 impl Row {
     pub fn put_unit(&mut self, unit: Unit) {
         assert!(self.range.intersects(unit.range));
-        self.strengths.borrow_mut().push(unit.strength);
+        self.strengths.push(unit.strength);
         self.units.push(unit);
-        self.is_dirty.set(true);
+        self.is_dirty = true;
     }
 
     pub fn put_special(&mut self, special: Special) {
@@ -49,7 +46,7 @@ impl Row {
             _ => unreachable!(),
         }
 
-        self.is_dirty.set(true);
+        self.is_dirty = true;
     }
 
     /// Changes `bad_weather` flag based on weather parameter
@@ -67,25 +64,24 @@ impl Row {
             _ => return,
         }
 
-        self.is_dirty.set(true);
+        self.is_dirty = true;
     }
 }
 
 impl Row {
-    pub fn get_strengths(&self) -> Ref<'_, Vec<Strength>> {
-        if self.is_dirty.get() {
-            self.recalculate_strengths();
-        }
-
-        self.strengths.borrow()
+    pub fn get_strengths(&self) -> &[Strength] {
+        &self.strengths
     }
 
-    ///
-    fn recalculate_strengths(&self) {
-        let mut strengths = self.strengths.borrow_mut();
+    pub fn update(&mut self) {
+        if self.is_dirty {
+            self.recalculate_strengths();
+        }
+    }
 
+    fn recalculate_strengths(&mut self) {
         for (i, unit) in self.units.iter().enumerate() {
-            strengths[i] = match unit.strength {
+            self.strengths[i] = match unit.strength {
                 Strength::Regular(_) if self.bad_weather => Strength::Regular(1),
                 strength => strength,
             };
@@ -106,7 +102,7 @@ impl Row {
             if let TightBond(group) = unit.ability
                 && let Some(bond_count) = tight_bonds.get(&group)
             {
-                strengths[i].mul_assign(*bond_count);
+                self.strengths[i].mul_assign(*bond_count);
             }
         }
 
@@ -124,7 +120,7 @@ impl Row {
                 current_boosts -= 1;
             }
 
-            strengths[i].add_assign(current_boosts);
+            self.strengths[i].add_assign(current_boosts);
         }
 
         let has_horn_unit = self.units.iter().any(|unit| unit.ability == CommandersHorn);
@@ -135,11 +131,11 @@ impl Row {
                 if unit.ability == CommandersHorn && !commanders_horn {
                     continue;
                 }
-                strengths[i].mul_assign(2);
+                self.strengths[i].mul_assign(2);
             }
         }
 
-        self.is_dirty.set(false);
+        self.is_dirty = false;
     }
 }
 

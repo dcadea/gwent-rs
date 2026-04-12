@@ -1,5 +1,3 @@
-use std::{cell::Ref, collections::HashMap};
-
 use crate::{
     card::{Range, Special, Strength, Unit, Weather},
     row::Row,
@@ -22,14 +20,18 @@ impl Default for Side {
 }
 
 impl Side {
-    pub fn get_strengths(&self) -> HashMap<Range, Ref<'_, Vec<Strength>>> {
-        let mut rows = HashMap::new();
+    pub fn get_strengths(&self) -> Strengths<'_> {
+        Strengths {
+            melee: self.melee.get_strengths(),
+            ranged: self.ranged.get_strengths(),
+            siege: self.siege.get_strengths(),
+        }
+    }
 
-        rows.insert(Range::MELEE, self.melee.get_strengths());
-        rows.insert(Range::RANGED, self.ranged.get_strengths());
-        rows.insert(Range::SIEGE, self.siege.get_strengths());
-
-        rows
+    pub fn update(&mut self) {
+        self.melee.update();
+        self.ranged.update();
+        self.siege.update();
     }
 }
 
@@ -67,5 +69,23 @@ impl Side {
             _ => unreachable!(),
         }
         .put_special(boost);
+    }
+}
+
+pub struct Strengths<'a> {
+    pub melee: &'a [Strength],
+    pub ranged: &'a [Strength],
+    pub siege: &'a [Strength],
+}
+
+#[cfg(test)]
+impl Strengths<'_> {
+    pub const fn get(&self, range: Range) -> &[Strength] {
+        match range {
+            Range::MELEE => self.melee,
+            Range::RANGED => self.ranged,
+            Range::SIEGE => self.siege,
+            _ => unreachable!(),
+        }
     }
 }

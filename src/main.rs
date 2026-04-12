@@ -1,3 +1,4 @@
+#![allow(unused)]
 use std::io::{self};
 
 use crate::{
@@ -29,9 +30,9 @@ impl Controller for ConsoleController {
 
         let mut input = String::new();
 
-        let i = usize::try_from(io::stdin().read_line(&mut input).unwrap()).unwrap();
+        io::stdin().read_line(&mut input).unwrap();
 
-        i
+        input.trim_end().parse::<usize>().unwrap()
     }
 
     fn select_range(&self) -> card::Range {
@@ -41,11 +42,11 @@ impl Controller for ConsoleController {
 
         io::stdin().read_line(&mut input).unwrap();
 
-        match input.trim() {
+        match input.trim_end() {
             "1" => Range::MELEE,
             "2" => Range::RANGED,
             "3" => Range::SIEGE,
-            _ => panic!(),
+            _ => panic!("Invalid range"),
         }
     }
 
@@ -54,9 +55,9 @@ impl Controller for ConsoleController {
 
         let mut input = String::new();
 
-        let i = usize::try_from(io::stdin().read_line(&mut input).unwrap()).unwrap();
+        io::stdin().read_line(&mut input).unwrap();
 
-        i
+        input.trim_end().parse::<usize>().unwrap()
     }
 }
 
