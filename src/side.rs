@@ -29,7 +29,7 @@ impl Side {
     }
 
     /// Returns max unit strength excluding heroes
-    pub fn get_max_strength(&self, range: Range) -> Option<u8> {
+    pub fn get_max_row_strength(&self, range: Range) -> Option<u8> {
         match range {
             Range::ALL => [
                 self.melee.get_max_strength(),
@@ -47,7 +47,7 @@ impl Side {
     }
 
     /// Returns total unit strength on the given row
-    pub fn get_total_strength(&self, range: Range) -> u8 {
+    pub fn get_total_row_strength(&self, range: Range) -> u8 {
         let row = match range {
             Range::MELEE => &self.melee,
             Range::RANGED => &self.ranged,

@@ -98,9 +98,7 @@ impl<C: Controller> Game<C> {
             p2,
         }
     }
-}
 
-impl<C: Controller> Game<C> {
     pub fn start(&mut self) {
         while !self.turn.both_passed() {
             // TODO: display
@@ -108,7 +106,9 @@ impl<C: Controller> Game<C> {
             self.next_turn();
         }
     }
+}
 
+impl<C: Controller> Game<C> {
     fn next_turn(&mut self) {
         let card = self.pick_card();
         self.actions.push(Action::PlayCard(card));
@@ -118,11 +118,7 @@ impl<C: Controller> Game<C> {
 
     fn pick_card(&mut self) -> Card {
         let i = self.controller.select_from_hand();
-        match self.turn.current {
-            Player::P1 => &mut self.p1,
-            Player::P2 => &mut self.p2,
-        }
-        .pick_card(i)
+        self.get_current_player_cards().pick_card(i)
     }
 
     fn run_actions(&mut self) {
@@ -173,19 +169,13 @@ impl<C: Controller> Game<C> {
 
     fn restore_from_pile(&mut self) -> Option<Card> {
         let i = self.controller.select_from_pile();
-        match self.turn.current {
-            Player::P1 => &mut self.p1,
-            Player::P2 => &mut self.p2,
-        }
-        .restore_from_pile(i)
+        self.get_current_player_cards().restore_from_pile(i)
     }
 
     fn play_muster(&mut self, group: Group) {
         let current = self.turn.current;
-        let cards = match current {
-            Player::P1 => self.p1.pick_muster(group),
-            Player::P2 => self.p2.pick_muster(group),
-        };
+
+        let cards = self.get_current_player_cards().pick_muster(group);
 
         for card in cards {
             self.board.put(current, card);
@@ -193,9 +183,13 @@ impl<C: Controller> Game<C> {
     }
 
     fn pick_from_deck(&mut self, num: usize) {
+        self.get_current_player_cards().pick_from_deck(num)
+    }
+
+    fn get_current_player_cards(&mut self) -> &mut Cards {
         match self.turn.current {
-            Player::P1 => self.p1.pick_from_deck(num),
-            Player::P2 => self.p2.pick_from_deck(num),
+            Player::P1 => &mut self.p1,
+            Player::P2 => &mut self.p2,
         }
     }
 }

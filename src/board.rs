@@ -25,10 +25,10 @@ impl Board {
     }
 
     /// Returns max unit strength excluding heroes
-    fn get_max_strength(&self, range: Range) -> Option<u8> {
+    fn get_max_row_strength(&self, range: Range) -> Option<u8> {
         [
-            self.player1.get_max_strength(range),
-            self.player2.get_max_strength(range),
+            self.player1.get_max_row_strength(range),
+            self.player2.get_max_row_strength(range),
         ]
         .into_iter()
         .flatten()
@@ -44,70 +44,21 @@ impl Board {
 impl Board {
     pub fn put(&mut self, player: Player, card: Card) -> Action {
         match card {
-            Card::Unit(unit) => {
-                if unit.range == Range::AGILE {
-                    return Action::Agile(unit);
-                }
-
-                let action = match unit.ability {
-                    card::Ability::Medic => Action::Medic,
-                    card::Ability::Muster(group) => Action::Muster(group),
-                    card::Ability::Scorch(range) => Action::Scorch(range),
-                    card::Ability::Spy => Action::Spy,
-                    card::Ability::Berserker => Action::Berserker,
-                    card::Ability::Mardrome(range) => Action::Mardrome(range),
-                    _ => Action::None,
-                };
-
-                match player {
-                    Player::P1 => {
-                        if matches!(action, Action::Spy) {
-                            &mut self.player2
-                        } else {
-                            &mut self.player1
-                        }
-                    }
-                    Player::P2 => {
-                        if matches!(action, Action::Spy) {
-                            &mut self.player1
-                        } else {
-                            &mut self.player2
-                        }
-                    }
-                }
-                .put_unit(unit);
-
-                action
-            }
-            Card::Special(special) => match special {
-                card::Special::CommandersHorn => Action::CommandersHorn,
-                card::Special::Decoy => Action::Decoy,
-                card::Special::Mardrome => Action::Mardrome(Range::ALL),
-                card::Special::Scorch => Action::Scorch(Range::ALL),
-                card::Special::Weather(weather) => {
-                    self.player1.put_weather(weather);
-                    self.player2.put_weather(weather);
-                    Action::None
-                }
-            },
+            Card::Unit(unit) => self.put_unit(player, unit),
+            Card::Special(special) => self.put_special(special),
         }
     }
 
     pub fn put_agile_unit(&mut self, player: Player, unit: Unit, range: Range) {
         assert!(range == Range::MELEE || range == Range::RANGED);
-        match player {
-            Player::P1 => &mut self.player1,
-            Player::P2 => &mut self.player2,
-        }
-        .put_agile_unit(unit, range);
+
+        self.get_current_player_mut(player)
+            .put_agile_unit(unit, range);
     }
 
     pub fn put_row_boost(&mut self, player: Player, boost: Special, range: Range) {
-        match player {
-            Player::P1 => &mut self.player1,
-            Player::P2 => &mut self.player2,
-        }
-        .put_row_boost(boost, range);
+        self.get_current_player_mut(player)
+            .put_row_boost(boost, range);
     }
 
     pub fn put_scorch(&mut self, player: Player, range: Range) {
@@ -115,32 +66,76 @@ impl Board {
 
         // Global scorch
         if range == Range::ALL {
-            if let Some(max_strength) = self.get_max_strength(range) {
+            if let Some(max_strength) = self.get_max_row_strength(range) {
                 self.player1.put_scorch(max_strength, Range::ALL);
                 self.player2.put_scorch(max_strength, Range::ALL);
             }
         } else {
             // Row target scorch
-            let total_row_strength = match player {
-                Player::P1 => &self.player2,
-                Player::P2 => &self.player1,
-            }
-            .get_total_strength(range);
+            let opponent_side = self.get_opponent_player_mut(player);
+
+            let total_row_strength = opponent_side.get_total_row_strength(range);
 
             // Applies only if total strength of row is >= 10
             if total_row_strength >= 10 {
-                match player {
-                    Player::P1 => {
-                        if let Some(max_row_strength) = self.player2.get_max_strength(range) {
-                            self.player2.put_scorch(max_row_strength, range);
-                        }
-                    }
-                    Player::P2 => {
-                        if let Some(max_row_strength) = self.player1.get_max_strength(range) {
-                            self.player1.put_scorch(max_row_strength, range);
-                        }
-                    }
+                if let Some(max_row_strength) = opponent_side.get_max_row_strength(range) {
+                    opponent_side.put_scorch(max_row_strength, range);
                 }
+            }
+        }
+    }
+}
+
+impl Board {
+    fn get_current_player_mut(&mut self, player: Player) -> &mut Side {
+        match player {
+            Player::P1 => &mut self.player1,
+            Player::P2 => &mut self.player2,
+        }
+    }
+
+    fn get_opponent_player_mut(&mut self, player: Player) -> &mut Side {
+        match player {
+            Player::P1 => &mut self.player2,
+            Player::P2 => &mut self.player1,
+        }
+    }
+
+    fn put_unit(&mut self, player: Player, unit: Unit) -> Action {
+        if unit.range == Range::AGILE {
+            return Action::Agile(unit);
+        }
+
+        let action = match unit.ability {
+            card::Ability::Medic => Action::Medic,
+            card::Ability::Muster(group) => Action::Muster(group),
+            card::Ability::Scorch(range) => Action::Scorch(range),
+            card::Ability::Spy => Action::Spy,
+            card::Ability::Berserker => Action::Berserker,
+            card::Ability::Mardrome(range) => Action::Mardrome(range),
+            _ => Action::None,
+        };
+
+        if matches!(action, Action::Spy) {
+            self.get_opponent_player_mut(player)
+        } else {
+            self.get_current_player_mut(player)
+        }
+        .put_unit(unit);
+
+        action
+    }
+
+    fn put_special(&mut self, special: Special) -> Action {
+        match special {
+            card::Special::CommandersHorn => Action::CommandersHorn,
+            card::Special::Decoy => Action::Decoy,
+            card::Special::Mardrome => Action::Mardrome(Range::ALL),
+            card::Special::Scorch => Action::Scorch(Range::ALL),
+            card::Special::Weather(weather) => {
+                self.player1.put_weather(weather);
+                self.player2.put_weather(weather);
+                Action::None
             }
         }
     }
