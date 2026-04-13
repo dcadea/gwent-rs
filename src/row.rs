@@ -69,7 +69,7 @@ impl Row {
 
     pub fn put_scorch(&mut self, max_strength: u8) {
         if self.is_dirty {
-            self.recalculate_strengths();
+            self.update();
         }
 
         let mut was_discarded = false;
@@ -111,11 +111,23 @@ impl Row {
             .max()
     }
 
-    pub fn recalculate_strengths(&mut self) {
+    pub fn update(&mut self) {
         if !self.is_dirty {
             return;
         }
 
+        self.transform_berserkers();
+        self.apply_weather();
+        self.apply_tight_bonds();
+        self.apply_morale_boost();
+        self.apply_commanders_horn();
+
+        self.is_dirty = false;
+    }
+}
+
+impl Row {
+    fn transform_berserkers(&mut self) {
         let has_mardrome_unit = self
             .units
             .iter()
@@ -140,14 +152,18 @@ impl Row {
                 self.units[i] = berserker;
             }
         }
+    }
 
+    fn apply_weather(&mut self) {
         for (i, unit) in self.units.iter().enumerate() {
             self.strengths[i] = match unit.strength {
                 Strength::Regular(_) if self.bad_weather => Strength::Regular(1),
                 strength => strength,
             };
         }
+    }
 
+    fn apply_tight_bonds(&mut self) {
         let tight_bonds: HashMap<Group, u8> = self
             .units
             .iter()
@@ -166,7 +182,9 @@ impl Row {
                 self.strengths[i].mul_assign(*bond_count);
             }
         }
+    }
 
+    fn apply_morale_boost(&mut self) {
         let morale_boosts = u8::try_from(
             self.units
                 .iter()
@@ -183,7 +201,9 @@ impl Row {
 
             self.strengths[i].add_assign(current_boosts);
         }
+    }
 
+    fn apply_commanders_horn(&mut self) {
         let has_horn_unit = self
             .units
             .iter()
@@ -198,8 +218,6 @@ impl Row {
                 self.strengths[i].mul_assign(2);
             }
         }
-
-        self.is_dirty = false;
     }
 }
 

@@ -155,7 +155,7 @@ impl<C: Controller> Game<C> {
             }
         }
 
-        self.board.recalculate_strengths();
+        self.board.update();
         self.turn.next();
     }
 

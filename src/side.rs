@@ -52,10 +52,10 @@ impl Side {
             .sum()
     }
 
-    pub fn recalculate_strengths(&mut self) {
-        self.melee.recalculate_strengths();
-        self.ranged.recalculate_strengths();
-        self.siege.recalculate_strengths();
+    pub fn update(&mut self) {
+        self.melee.update();
+        self.ranged.update();
+        self.siege.update();
     }
 }
 

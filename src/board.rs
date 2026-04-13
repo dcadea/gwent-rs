@@ -35,9 +35,9 @@ impl Board {
         .max()
     }
 
-    pub fn recalculate_strengths(&mut self) {
-        self.player1.recalculate_strengths();
-        self.player2.recalculate_strengths();
+    pub fn update(&mut self) {
+        self.player1.update();
+        self.player2.update();
     }
 }
 
@@ -62,7 +62,7 @@ impl Board {
     }
 
     pub fn put_scorch(&mut self, player: Player, range: Range) {
-        self.recalculate_strengths();
+        self.update();
 
         // Global scorch
         if range == Range::ALL {
@@ -166,7 +166,7 @@ mod test {
         let mut board = Board::default();
 
         board.put(P1, Card::unit(5, "", Range::MELEE));
-        board.recalculate_strengths();
+        board.update();
 
         let row = board.get_strengths().p1.melee;
 
@@ -210,7 +210,7 @@ mod test {
         for card in cards {
             board.put(P1, card);
         }
-        board.recalculate_strengths();
+        board.update();
 
         let row = board.get_strengths().p1.melee;
 
@@ -253,7 +253,7 @@ mod test {
         for card in cards {
             board.put(P1, card);
         }
-        board.recalculate_strengths();
+        board.update();
 
         let row = board.get_strengths().p1.melee;
 
@@ -288,7 +288,7 @@ mod test {
         for card in cards {
             board.put(P1, card);
         }
-        board.recalculate_strengths();
+        board.update();
 
         let row = board.get_strengths().p1.melee;
 
@@ -317,7 +317,7 @@ mod test {
         for card in cards {
             board.put(P1, card);
         }
-        board.recalculate_strengths();
+        board.update();
 
         let row = board.get_strengths().p1.melee;
 
@@ -355,7 +355,7 @@ mod test {
         for card in cards {
             board.put(P1, card);
         }
-        board.recalculate_strengths();
+        board.update();
 
         let row = board.get_strengths().p1.melee;
 
@@ -395,7 +395,7 @@ mod test {
             for card in cards {
                 board.put(P1, card);
             }
-            board.recalculate_strengths();
+            board.update();
 
             let strengths = board.get_strengths();
             let row = strengths.p1.get(range);
@@ -424,7 +424,7 @@ mod test {
             for card in cards {
                 board.put(P1, card);
             }
-            board.recalculate_strengths();
+            board.update();
 
             let strengths = board.get_strengths();
             let row = strengths.p1.get(range);
@@ -452,7 +452,7 @@ mod test {
             for card in cards {
                 board.put(P1, card);
             }
-            board.recalculate_strengths();
+            board.update();
 
             let strengths = board.get_strengths();
             let row = strengths.p1.get(range);
@@ -474,7 +474,7 @@ mod test {
             for card in cards {
                 board.put(P1, card);
             }
-            board.recalculate_strengths();
+            board.update();
 
             let strengths = board.get_strengths();
             let row = strengths.p1.get(range);
@@ -502,7 +502,7 @@ mod test {
             for card in cards {
                 board.put(P1, card);
             }
-            board.recalculate_strengths();
+            board.update();
 
             let strengths = board.get_strengths();
             let row = strengths.p1.get(range);
@@ -510,7 +510,7 @@ mod test {
             assert_eq!(row, vec![Strength::Regular(1), Strength::Hero(10)]);
 
             board.put(P1, Card::Special(Special::Weather(Weather::ClearWeather)));
-            board.recalculate_strengths();
+            board.update();
 
             let strengths = board.get_strengths();
             let row = strengths.p1.get(range);
@@ -542,7 +542,7 @@ mod test {
         for card in cards {
             board.put(P1, card);
         }
-        board.recalculate_strengths();
+        board.update();
 
         let row = board.get_strengths().p1.melee;
 
