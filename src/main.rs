@@ -15,7 +15,7 @@ mod row;
 mod side;
 
 fn main() {
-    let l = Library::default();
+    let _ = Library::default();
     let p1 = todo!();
     let p2 = todo!();
     let mut game = Game::new(ConsoleController {}, p1, p2);
@@ -31,9 +31,14 @@ impl Controller for ConsoleController {
 
         let mut input = String::new();
 
-        io::stdin().read_line(&mut input).unwrap();
+        io::stdin()
+            .read_line(&mut input)
+            .expect("could not read console input");
 
-        input.trim_end().parse::<usize>().unwrap()
+        input
+            .trim_end()
+            .parse::<usize>()
+            .expect("could not parse card index")
     }
 
     fn select_range(&self) -> card::Range {
@@ -41,7 +46,9 @@ impl Controller for ConsoleController {
 
         let mut input = String::new();
 
-        io::stdin().read_line(&mut input).unwrap();
+        io::stdin()
+            .read_line(&mut input)
+            .expect("could not read console input");
 
         match input.trim_end() {
             "1" => Range::MELEE,
@@ -56,9 +63,14 @@ impl Controller for ConsoleController {
 
         let mut input = String::new();
 
-        io::stdin().read_line(&mut input).unwrap();
+        io::stdin()
+            .read_line(&mut input)
+            .expect("could not read console input");
 
-        input.trim_end().parse::<usize>().unwrap()
+        input
+            .trim_end()
+            .parse::<usize>()
+            .expect("could not parse card index")
     }
 
     fn select_from_board(&self) -> Option<(Range, usize)> {
@@ -68,9 +80,14 @@ impl Controller for ConsoleController {
 
         let mut input = String::new();
 
-        io::stdin().read_line(&mut input).unwrap();
+        io::stdin()
+            .read_line(&mut input)
+            .expect("could not read console input");
 
-        let i = input.trim_end().parse::<usize>().unwrap();
+        let i = input
+            .trim_end()
+            .parse::<usize>()
+            .expect("could not parse card index");
 
         Some((range, i))
     }

@@ -68,9 +68,7 @@ impl Row {
     }
 
     pub fn put_scorch(&mut self, max_strength: u8) {
-        if self.is_dirty {
-            self.update();
-        }
+        self.update();
 
         let mut was_discarded = false;
 
