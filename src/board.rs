@@ -112,7 +112,7 @@ impl Board {
 
         let action = match unit.ability {
             card::Ability::Medic => Action::Medic,
-            card::Ability::Muster(group) => Action::Muster(group),
+            card::Ability::Muster(group, _) => Action::Muster(group),
             card::Ability::Scorch(range) => Action::Scorch(range),
             card::Ability::Spy => Action::Spy,
             card::Ability::Berserker => Action::Berserker,

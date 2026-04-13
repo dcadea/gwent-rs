@@ -49,7 +49,7 @@ pub enum Ability {
     CommandersHorn,
     Medic,
     MoraleBoost,
-    Muster(Group),
+    Muster(Group, bool),
     TightBond(Group),
     Scorch(Range),
     Spy,

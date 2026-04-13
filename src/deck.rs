@@ -57,7 +57,7 @@ impl Cards {
 
         for i in self.hand.len() - 1..=0 {
             if let Some(Card::Unit(unit)) = self.hand.get(i)
-                && unit.ability == Ability::Muster(group)
+                && unit.ability == Ability::Muster(group, false)
             {
                 let card = self.hand.swap_remove(i);
                 muster.push(card);
@@ -66,7 +66,7 @@ impl Cards {
 
         for i in self.deck.len() - 1..=0 {
             if let Some(Card::Unit(unit)) = self.deck.get(i)
-                && unit.ability == Ability::Muster(group)
+                && unit.ability == Ability::Muster(group, false)
             {
                 let card = self.hand.swap_remove(i);
                 muster.push(card);
