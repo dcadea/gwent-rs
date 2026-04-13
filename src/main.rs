@@ -2,8 +2,7 @@
 use std::io::{self};
 
 use crate::{
-    card::{Card, Range, Strength, Unit},
-    deck::{Cards, Deck},
+    card::Range,
     game::{Controller, Game},
 };
 
@@ -15,8 +14,8 @@ mod row;
 mod side;
 
 fn main() {
-    let p1 = test_cards();
-    let p2 = test_cards();
+    let p1 = todo!();
+    let p2 = todo!();
     let mut game = Game::new(ConsoleController {}, p1, p2);
 
     game.start();
@@ -73,119 +72,4 @@ impl Controller for ConsoleController {
 
         Some((range, i))
     }
-}
-
-fn test_cards() -> Cards {
-    Cards::new(Deck::new(vec![
-        Card::Unit(Unit {
-            strength: Strength::Regular(5),
-            ability: card::Ability::None,
-            range: Range::AGILE,
-        }),
-        Card::Unit(Unit {
-            strength: Strength::Regular(5),
-            ability: card::Ability::None,
-            range: Range::AGILE,
-        }),
-        Card::Unit(Unit {
-            strength: Strength::Regular(5),
-            ability: card::Ability::None,
-            range: Range::AGILE,
-        }),
-        Card::Unit(Unit {
-            strength: Strength::Regular(5),
-            ability: card::Ability::None,
-            range: Range::AGILE,
-        }),
-        Card::Unit(Unit {
-            strength: Strength::Regular(5),
-            ability: card::Ability::None,
-            range: Range::AGILE,
-        }),
-        Card::Unit(Unit {
-            strength: Strength::Regular(5),
-            ability: card::Ability::None,
-            range: Range::AGILE,
-        }),
-        Card::Unit(Unit {
-            strength: Strength::Regular(5),
-            ability: card::Ability::None,
-            range: Range::AGILE,
-        }),
-        Card::Unit(Unit {
-            strength: Strength::Regular(5),
-            ability: card::Ability::None,
-            range: Range::AGILE,
-        }),
-        Card::Unit(Unit {
-            strength: Strength::Regular(5),
-            ability: card::Ability::None,
-            range: Range::AGILE,
-        }),
-        Card::Unit(Unit {
-            strength: Strength::Regular(5),
-            ability: card::Ability::None,
-            range: Range::AGILE,
-        }),
-        Card::Unit(Unit {
-            strength: Strength::Regular(5),
-            ability: card::Ability::None,
-            range: Range::AGILE,
-        }),
-        Card::Unit(Unit {
-            strength: Strength::Regular(5),
-            ability: card::Ability::None,
-            range: Range::AGILE,
-        }),
-        Card::Unit(Unit {
-            strength: Strength::Regular(5),
-            ability: card::Ability::None,
-            range: Range::AGILE,
-        }),
-        Card::Unit(Unit {
-            strength: Strength::Regular(5),
-            ability: card::Ability::None,
-            range: Range::AGILE,
-        }),
-        Card::Unit(Unit {
-            strength: Strength::Regular(5),
-            ability: card::Ability::None,
-            range: Range::AGILE,
-        }),
-        Card::Unit(Unit {
-            strength: Strength::Regular(5),
-            ability: card::Ability::None,
-            range: Range::AGILE,
-        }),
-        Card::Unit(Unit {
-            strength: Strength::Regular(5),
-            ability: card::Ability::None,
-            range: Range::AGILE,
-        }),
-        Card::Unit(Unit {
-            strength: Strength::Regular(5),
-            ability: card::Ability::None,
-            range: Range::AGILE,
-        }),
-        Card::Unit(Unit {
-            strength: Strength::Regular(5),
-            ability: card::Ability::None,
-            range: Range::AGILE,
-        }),
-        Card::Unit(Unit {
-            strength: Strength::Regular(5),
-            ability: card::Ability::None,
-            range: Range::AGILE,
-        }),
-        Card::Unit(Unit {
-            strength: Strength::Regular(5),
-            ability: card::Ability::None,
-            range: Range::AGILE,
-        }),
-        Card::Unit(Unit {
-            strength: Strength::Regular(5),
-            ability: card::Ability::None,
-            range: Range::AGILE,
-        }),
-    ]))
 }

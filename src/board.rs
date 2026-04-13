@@ -161,7 +161,7 @@ mod test {
     fn should_put_regular_unit() {
         let mut board = Board::default();
 
-        board.put(P1, Card::unit(5, Range::MELEE));
+        board.put(P1, Card::unit(5, "", Range::MELEE));
         board.recalculate_strengths();
 
         let row = board.get_strengths().p1.melee;
@@ -196,10 +196,10 @@ mod test {
     #[test]
     fn should_apply_morale_boost_twice() {
         let cards = [
-            Card::unit(5, Range::MELEE),
-            Card::the_unit(10, Range::MELEE, Ability::MoraleBoost),
-            Card::hero(7, Range::MELEE),
-            Card::the_hero(10, Range::MELEE, Ability::MoraleBoost),
+            Card::unit(5, "", Range::MELEE),
+            Card::the_unit(10, "", Range::MELEE, Ability::MoraleBoost),
+            Card::hero(7, "", Range::MELEE),
+            Card::the_hero(10, "", Range::MELEE, Ability::MoraleBoost),
         ];
 
         let mut board = Board::default();
@@ -241,8 +241,8 @@ mod test {
     #[test]
     fn should_apply_unit_commanders_horn() {
         let cards = [
-            Card::unit(5, Range::MELEE),
-            Card::the_unit(2, Range::MELEE, Ability::CommandersHorn),
+            Card::unit(5, "", Range::MELEE),
+            Card::the_unit(2, "", Range::MELEE, Ability::CommandersHorn),
         ];
 
         let mut board = Board::default();
@@ -274,10 +274,10 @@ mod test {
     #[test]
     fn should_apply_tight_bond() {
         let cards = [
-            Card::the_unit(4, Range::MELEE, Ability::TightBond(1)),
-            Card::the_unit(5, Range::MELEE, Ability::TightBond(2)),
-            Card::hero(7, Range::MELEE),
-            Card::the_unit(4, Range::MELEE, Ability::TightBond(1)),
+            Card::the_unit(4, "", Range::MELEE, Ability::TightBond(1)),
+            Card::the_unit(5, "", Range::MELEE, Ability::TightBond(2)),
+            Card::hero(7, "", Range::MELEE),
+            Card::the_unit(4, "", Range::MELEE, Ability::TightBond(1)),
         ];
 
         let mut board = Board::default();
@@ -302,11 +302,11 @@ mod test {
     #[test]
     fn should_apply_tight_bond_and_morale_boost() {
         let cards = [
-            Card::the_unit(4, Range::MELEE, Ability::TightBond(1)),
-            Card::the_unit(5, Range::MELEE, Ability::TightBond(2)),
-            Card::hero(7, Range::MELEE),
-            Card::the_unit(4, Range::MELEE, Ability::TightBond(1)),
-            Card::the_unit(10, Range::MELEE, Ability::MoraleBoost),
+            Card::the_unit(4, "", Range::MELEE, Ability::TightBond(1)),
+            Card::the_unit(5, "", Range::MELEE, Ability::TightBond(2)),
+            Card::hero(7, "", Range::MELEE),
+            Card::the_unit(4, "", Range::MELEE, Ability::TightBond(1)),
+            Card::the_unit(10, "", Range::MELEE, Ability::MoraleBoost),
         ];
 
         let mut board = Board::default();
@@ -332,16 +332,16 @@ mod test {
     #[test]
     fn should_apply_moral_boost_tight_bond_and_commanders_horn() {
         let cards = [
-            Card::unit(5, Range::MELEE),
-            Card::hero(7, Range::MELEE),
-            Card::the_unit(6, Range::MELEE, Ability::MoraleBoost),
-            Card::the_hero(10, Range::MELEE, Ability::MoraleBoost),
-            Card::the_unit(5, Range::MELEE, Ability::TightBond(2)),
-            Card::the_unit(5, Range::MELEE, Ability::TightBond(2)),
-            Card::the_unit(4, Range::MELEE, Ability::TightBond(1)),
-            Card::the_unit(4, Range::MELEE, Ability::TightBond(1)),
-            Card::the_unit(4, Range::MELEE, Ability::TightBond(1)),
-            Card::the_unit(2, Range::MELEE, Ability::CommandersHorn),
+            Card::unit(5, "", Range::MELEE),
+            Card::hero(7, "", Range::MELEE),
+            Card::the_unit(6, "", Range::MELEE, Ability::MoraleBoost),
+            Card::the_hero(10, "", Range::MELEE, Ability::MoraleBoost),
+            Card::the_unit(5, "", Range::MELEE, Ability::TightBond(2)),
+            Card::the_unit(5, "", Range::MELEE, Ability::TightBond(2)),
+            Card::the_unit(4, "", Range::MELEE, Ability::TightBond(1)),
+            Card::the_unit(4, "", Range::MELEE, Ability::TightBond(1)),
+            Card::the_unit(4, "", Range::MELEE, Ability::TightBond(1)),
+            Card::the_unit(2, "", Range::MELEE, Ability::CommandersHorn),
         ];
 
         // TODO
@@ -382,8 +382,8 @@ mod test {
             (Range::SIEGE, Weather::SkelligeStorm),
         ] {
             let cards = [
-                Card::unit(5, range),
-                Card::hero(10, range),
+                Card::unit(5, "", range),
+                Card::hero(10, "", range),
                 Card::Special(Special::Weather(weather)),
             ];
 
@@ -410,8 +410,8 @@ mod test {
             (Range::SIEGE, Weather::SkelligeStorm),
         ] {
             let cards = [
-                Card::unit(5, range),
-                Card::hero(10, range),
+                Card::unit(5, "", range),
+                Card::hero(10, "", range),
                 Card::Special(Special::Weather(weather)),
                 Card::Special(Special::Weather(weather)),
             ];
@@ -439,8 +439,8 @@ mod test {
             (Range::SIEGE, Weather::BitingFrost),
         ] {
             let cards = [
-                Card::unit(5, range),
-                Card::hero(10, range),
+                Card::unit(5, "", range),
+                Card::hero(10, "", range),
                 Card::Special(Special::Weather(weather)),
             ];
 
@@ -461,8 +461,8 @@ mod test {
     fn should_not_affect_units_by_clear_weather() {
         for range in [Range::MELEE, Range::RANGED, Range::SIEGE] {
             let cards = [
-                Card::unit(5, range),
-                Card::hero(10, range),
+                Card::unit(5, "", range),
+                Card::hero(10, "", range),
                 Card::Special(Special::Weather(Weather::ClearWeather)),
             ];
 
@@ -489,8 +489,8 @@ mod test {
             (Range::SIEGE, Weather::SkelligeStorm),
         ] {
             let cards = [
-                Card::unit(5, range),
-                Card::hero(10, range),
+                Card::unit(5, "", range),
+                Card::hero(10, "", range),
                 Card::Special(Special::Weather(weather)),
             ];
 
@@ -519,16 +519,16 @@ mod test {
     fn should_apply_weather_when_moral_boost_tight_bond_and_commanders_horn() {
         let cards = [
             Card::Special(Special::Weather(Weather::BitingFrost)),
-            Card::unit(5, Range::MELEE),
-            Card::hero(7, Range::MELEE),
-            Card::the_unit(6, Range::MELEE, Ability::MoraleBoost),
-            Card::the_hero(10, Range::MELEE, Ability::MoraleBoost),
-            Card::the_unit(5, Range::MELEE, Ability::TightBond(2)),
-            Card::the_unit(5, Range::MELEE, Ability::TightBond(2)),
-            Card::the_unit(4, Range::MELEE, Ability::TightBond(1)),
-            Card::the_unit(4, Range::MELEE, Ability::TightBond(1)),
-            Card::the_unit(4, Range::MELEE, Ability::TightBond(1)),
-            Card::the_unit(2, Range::MELEE, Ability::CommandersHorn),
+            Card::unit(5, "", Range::MELEE),
+            Card::hero(7, "", Range::MELEE),
+            Card::the_unit(6, "", Range::MELEE, Ability::MoraleBoost),
+            Card::the_hero(10, "", Range::MELEE, Ability::MoraleBoost),
+            Card::the_unit(5, "", Range::MELEE, Ability::TightBond(2)),
+            Card::the_unit(5, "", Range::MELEE, Ability::TightBond(2)),
+            Card::the_unit(4, "", Range::MELEE, Ability::TightBond(1)),
+            Card::the_unit(4, "", Range::MELEE, Ability::TightBond(1)),
+            Card::the_unit(4, "", Range::MELEE, Ability::TightBond(1)),
+            Card::the_unit(2, "", Range::MELEE, Ability::CommandersHorn),
         ];
 
         // TODO:

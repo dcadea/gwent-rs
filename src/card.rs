@@ -8,6 +8,34 @@ pub enum Card {
     Special(Special),
 }
 
+impl Card {
+    pub fn unit(strength: u8, name: impl Into<String>, range: Range) -> Self {
+        Self::the_unit(strength, name, range, Ability::None)
+    }
+
+    pub fn the_unit(strength: u8, name: impl Into<String>, range: Range, ability: Ability) -> Self {
+        Self::Unit(Unit {
+            strength: Strength::Regular(strength),
+            name: name.into(),
+            ability,
+            range,
+        })
+    }
+
+    pub fn hero(strength: u8, name: impl Into<String>, range: Range) -> Self {
+        Self::the_hero(strength, name, range, Ability::None)
+    }
+
+    pub fn the_hero(strength: u8, name: impl Into<String>, range: Range, ability: Ability) -> Self {
+        Self::Unit(Unit {
+            strength: Strength::Hero(strength),
+            name: name.into(),
+            ability,
+            range,
+        })
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Strength {
     Hero(u8),
@@ -38,6 +66,7 @@ impl Strength {
 #[derive(Clone)]
 pub struct Unit {
     pub strength: Strength,
+    pub name: String,
     pub ability: Ability,
     pub range: Range,
 }
@@ -127,44 +156,11 @@ impl Weather {
 mod test {
     use crate::card::{Ability, Card, Range, Strength, Unit};
 
-    impl Card {
-        pub fn unit(strength: u8, range: Range) -> Self {
-            Self::Unit(Unit {
-                strength: Strength::Regular(strength),
-                ability: Ability::None,
-                range,
-            })
-        }
-
-        pub fn hero(strength: u8, range: Range) -> Self {
-            Self::Unit(Unit {
-                strength: Strength::Hero(strength),
-                ability: Ability::None,
-                range,
-            })
-        }
-
-        pub fn the_unit(strength: u8, range: Range, ability: Ability) -> Self {
-            Self::Unit(Unit {
-                strength: Strength::Regular(strength),
-                ability,
-                range,
-            })
-        }
-
-        pub fn the_hero(strength: u8, range: Range, ability: Ability) -> Self {
-            Self::Unit(Unit {
-                strength: Strength::Hero(strength),
-                ability,
-                range,
-            })
-        }
-    }
-
     impl Unit {
         pub fn new(strength: Strength, ability: Ability, range: Range) -> Self {
             Self {
                 strength,
+                name: "test_name".to_string(),
                 ability,
                 range,
             }
