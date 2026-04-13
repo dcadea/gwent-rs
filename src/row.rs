@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::card::{
-    Ability::{CommandersHorn, MoraleBoost, TightBond},
+    Ability::{Berserker, CommandersHorn, Mardrome, MoraleBoost, TightBond},
     Group, Range, Special, Strength, Unit,
     Weather::{self, ClearWeather},
 };
@@ -116,6 +116,31 @@ impl Row {
             return;
         }
 
+        let has_mardrome_unit = self
+            .units
+            .iter()
+            .any(|unit| matches!(unit.ability, Mardrome));
+
+        let mardrome = matches!(self.boost, Some(Special::Mardrome));
+        if mardrome || has_mardrome_unit {
+            let berserkers = self
+                .units
+                .iter()
+                .enumerate()
+                .filter_map(|(i, unit)| {
+                    if let Berserker(b) = &unit.ability {
+                        Some((i, *b.clone()))
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<(usize, Unit)>>();
+
+            for (i, berserker) in berserkers {
+                self.units[i] = berserker;
+            }
+        }
+
         for (i, unit) in self.units.iter().enumerate() {
             self.strengths[i] = match unit.strength {
                 Strength::Regular(_) if self.bad_weather => Strength::Regular(1),
@@ -145,26 +170,29 @@ impl Row {
         let morale_boosts = u8::try_from(
             self.units
                 .iter()
-                .filter(|unit| unit.ability == MoraleBoost)
+                .filter(|unit| matches!(unit.ability, MoraleBoost))
                 .count(),
         )
         .unwrap_or(0);
 
         for (i, unit) in self.units.iter().enumerate() {
             let mut current_boosts = morale_boosts;
-            if unit.ability == MoraleBoost {
+            if matches!(unit.ability, MoraleBoost) {
                 current_boosts -= 1;
             }
 
             self.strengths[i].add_assign(current_boosts);
         }
 
-        let has_horn_unit = self.units.iter().any(|unit| unit.ability == CommandersHorn);
+        let has_horn_unit = self
+            .units
+            .iter()
+            .any(|unit| matches!(unit.ability, CommandersHorn));
 
         let commanders_horn = matches!(self.boost, Some(Special::CommandersHorn));
         if commanders_horn || has_horn_unit {
             for (i, unit) in self.units.iter().enumerate() {
-                if unit.ability == CommandersHorn && !commanders_horn {
+                if matches!(unit.ability, CommandersHorn) && !commanders_horn {
                     continue;
                 }
                 self.strengths[i].mul_assign(2);

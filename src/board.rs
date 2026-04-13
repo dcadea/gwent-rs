@@ -115,9 +115,13 @@ impl Board {
             card::Ability::Muster(group, _) => Action::Muster(group),
             card::Ability::Scorch(range) => Action::Scorch(range),
             card::Ability::Spy => Action::Spy,
-            card::Ability::Berserker => Action::Berserker,
-            card::Ability::Mardrome(range) => Action::Mardrome(range),
-            _ => Action::None,
+            card::Ability::Mardrome
+            | card::Ability::CommandersHorn
+            | card::Ability::MoraleBoost
+            | card::Ability::TightBond(_)
+            | card::Ability::Summon(_)
+            | card::Ability::Berserker(_)
+            | card::Ability::None => Action::None,
         };
 
         if matches!(action, Action::Spy) {
@@ -134,7 +138,7 @@ impl Board {
         match special {
             card::Special::CommandersHorn => Action::CommandersHorn,
             card::Special::Decoy => Action::Decoy,
-            card::Special::Mardrome => Action::Mardrome(Range::ALL),
+            card::Special::Mardrome => Action::Mardrome,
             card::Special::Scorch => Action::Scorch(Range::ALL),
             card::Special::Weather(weather) => {
                 self.player1.put_weather(weather);

@@ -73,7 +73,7 @@ pub struct Unit {
 
 pub type Group = u8;
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone)]
 pub enum Ability {
     CommandersHorn,
     Medic,
@@ -82,9 +82,9 @@ pub enum Ability {
     TightBond(Group),
     Scorch(Range),
     Spy,
-    Summon,
-    Berserker,
-    Mardrome(Range),
+    Summon(Box<Unit>),
+    Berserker(Box<Unit>),
+    Mardrome,
     None,
 }
 
@@ -154,7 +154,7 @@ impl Weather {
 
 #[cfg(test)]
 mod test {
-    use crate::card::{Ability, Card, Range, Strength, Unit};
+    use crate::card::{Ability, Range, Strength, Unit};
 
     impl Unit {
         pub fn new(strength: Strength, ability: Ability, range: Range) -> Self {

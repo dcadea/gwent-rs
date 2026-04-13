@@ -57,7 +57,8 @@ impl Cards {
 
         for i in self.hand.len() - 1..=0 {
             if let Some(Card::Unit(unit)) = self.hand.get(i)
-                && unit.ability == Ability::Muster(group, false)
+                && let Ability::Muster(mg, false) = unit.ability
+                && mg == group
             {
                 let card = self.hand.swap_remove(i);
                 muster.push(card);
@@ -66,7 +67,8 @@ impl Cards {
 
         for i in self.deck.len() - 1..=0 {
             if let Some(Card::Unit(unit)) = self.deck.get(i)
-                && unit.ability == Ability::Muster(group, false)
+                && let Ability::Muster(mg, false) = unit.ability
+                && mg == group
             {
                 let card = self.hand.swap_remove(i);
                 muster.push(card);
@@ -97,7 +99,7 @@ impl Deck {
     }
 }
 
-struct Library {
+pub struct Library {
     neutral: Vec<Card>,
     monsters: Vec<Card>,
     nilfgaard: Vec<Card>,
@@ -111,10 +113,12 @@ struct Library {
 impl Library {
     /// Neutral cards. Each faction can use these.
     fn neutral() -> Vec<Card> {
-        // TODO
-        // Neutral side deck. Can't start in your deck.
-        // const BOVINE_DEFENCE_1: Card = Card::unit(8, "Bovine Defence", Range::MELEE);
-        // const BOVINE_DEFENCE_2: Card = Card::unit(8, "Bovine Defence", Range::MELEE);
+        let bovine_defence = Unit {
+            strength: Strength::Regular(8),
+            name: "Bovine Defence".to_string(),
+            ability: Ability::None,
+            range: Range::MELEE,
+        };
 
         vec![
             Card::the_hero(0, "Avallac'h", Range::MELEE, Ability::Spy),
@@ -123,7 +127,7 @@ impl Library {
             Card::the_unit(3, "Roach", Range::MELEE, Ability::Muster(1, false)),
             Card::hero(7, "Triss", Range::MELEE),
             Card::the_hero(7, "Yennefer", Range::RANGED, Ability::Medic),
-            Card::the_unit(0, "Cow", Range::RANGED, Ability::Summon),
+            Card::the_unit(0, "Cow", Range::RANGED, Ability::Summon(Box::new(bovine_defence))),
             Card::the_unit(2, "Dandelion", Range::MELEE, Ability::CommandersHorn),
             Card::unit(5, "Emiel Regis", Range::MELEE),
             Card::the_unit(2, "Gaunter O'Dimm", Range::SIEGE, Ability::Muster(2, true)),
@@ -311,11 +315,32 @@ impl Library {
     }
 
     fn skellige() -> Vec<Card> {
+        let vildkaarl = Unit {
+            strength: Strength::Regular(14),
+            name: "Vildkaarl".to_string(),
+            ability: Ability::MoraleBoost,
+            range: Range::MELEE,
+        };
+
+        let hemdall = Unit {
+            strength: Strength::Hero(11),
+            name: "Hemdall".to_string(),
+            ability: Ability::None,
+            range: Range::MELEE,
+        };
+
+        let young_vildkaarl = Unit {
+            strength: Strength::Regular(8),
+            name: "Young Vildkaarl".to_string(),
+            ability: Ability::TightBond(11),
+            range: Range::RANGED,
+        };
+
         vec![
             Card::the_hero(10, "Cerys", Range::MELEE, Ability::Muster(11, false)), // FIXME
-            Card::the_hero(8, "Ermion", Range::RANGED, Ability::Mardrome(Range::RANGED)),
+            Card::the_hero(8, "Ermion", Range::RANGED, Ability::Mardrome),
             Card::hero(10, "Hjalmar", Range::RANGED),
-            Card::the_unit(4, "Berserker", Range::MELEE, Ability::Berserker),
+            Card::the_unit(4, "Berserker", Range::MELEE, Ability::Berserker(Box::new(vildkaarl))),
             Card::the_unit(2, "Birna Bran", Range::MELEE, Ability::Medic),
             Card::unit(6, "Blueboy Lugos", Range::MELEE),
             Card::the_unit(6, "Clan an Craite Warrior", Range::MELEE, Ability::TightBond(8)),
@@ -333,7 +358,7 @@ impl Library {
             Card::unit(4, "Donar an Hindar", Range::MELEE),
             Card::the_unit(2, "Draig Bon-Dhu", Range::SIEGE, Ability::CommandersHorn),
             Card::unit(4, "Holger Blackhand", Range::SIEGE),
-            Card::the_unit(0, "Kambi", Range::MELEE, Ability::Summon),
+            Card::the_unit(0, "Kambi", Range::MELEE, Ability::Summon(Box::new(hemdall))),
             Card::the_unit(4, "Light Longship", Range::RANGED, Ability::Muster(12, false)),
             Card::the_unit(4, "Light Longship", Range::RANGED, Ability::Muster(12, false)),
             Card::the_unit(4, "Light Longship", Range::RANGED, Ability::Muster(12, false)),
@@ -344,16 +369,9 @@ impl Library {
             Card::the_unit(6, "War Longship", Range::SIEGE, Ability::TightBond(10)),
             Card::the_unit(6, "War Longship", Range::SIEGE, Ability::TightBond(10)),
             Card::the_unit(6, "War Longship", Range::SIEGE, Ability::TightBond(10)),
-            Card::the_unit(2, "Young Berserker", Range::RANGED, Ability::Berserker),
-            Card::the_unit(2, "Young Berserker", Range::RANGED, Ability::Berserker),
-            Card::the_unit(2, "Young Berserker", Range::RANGED, Ability::Berserker),
-
-            // TODO: transformed into
-            // Card::hero(11, "Hemdall", Range::MELEE),
-            // Card::the_unit(14, "Vildkaarl", Range::MELEE, Ability::MoraleBoost),
-            // Card::the_unit(8, "Young Vildkaarl", Range::RANGED, Ability::TightBond(11)),
-            // Card::the_unit(8, "Young Vildkaarl", Range::RANGED, Ability::TightBond(11)),
-            // Card::the_unit(8, "Young Vildkaarl", Range::RANGED, Ability::TightBond(11)),
+            Card::the_unit(2, "Young Berserker", Range::RANGED, Ability::Berserker(Box::new(young_vildkaarl.clone()))),
+            Card::the_unit(2, "Young Berserker", Range::RANGED, Ability::Berserker(Box::new(young_vildkaarl.clone()))),
+            Card::the_unit(2, "Young Berserker", Range::RANGED, Ability::Berserker(Box::new(young_vildkaarl))),
         ]
     }
 

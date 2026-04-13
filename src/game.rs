@@ -65,8 +65,7 @@ pub enum Action {
     /// Take two cards from deck
     Spy,
 
-    Berserker,
-    Mardrome(Range),
+    Mardrome,
     CommandersHorn,
     Decoy,
     None,
@@ -142,16 +141,9 @@ impl<C: Controller> Game<C> {
                 Action::Muster(group) => self.play_muster(group),
                 Action::Scorch(range) => self.board.put_scorch(current, range),
                 Action::Spy => self.pick_from_deck(2),
-                Action::Berserker => todo!("check if mardrome is on that row and transform"),
-                Action::Mardrome(range) => {
-                    let range = if range == Range::ALL {
-                        self.controller.select_range()
-                    } else {
-                        range
-                    };
-
+                Action::Mardrome => {
+                    let range = self.controller.select_range();
                     self.board.put_row_boost(current, Special::Mardrome, range);
-                    // TODO: check if berserkers are on that row and transform
                 }
                 Action::CommandersHorn => {
                     let range = self.controller.select_range();

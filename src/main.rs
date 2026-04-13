@@ -3,6 +3,7 @@ use std::io::{self};
 
 use crate::{
     card::Range,
+    deck::Library,
     game::{Controller, Game},
 };
 
@@ -14,6 +15,7 @@ mod row;
 mod side;
 
 fn main() {
+    let l = Library::default();
     let p1 = todo!();
     let p2 = todo!();
     let mut game = Game::new(ConsoleController {}, p1, p2);
