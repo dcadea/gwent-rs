@@ -9,12 +9,19 @@ pub enum Card {
 }
 
 impl Card {
-    pub fn unit(strength: u8, name: impl Into<String>, range: Range) -> Self {
-        Self::the_unit(strength, name, range, Ability::None)
+    pub fn unit(id: u16, strength: u8, name: impl Into<String>, range: Range) -> Self {
+        Self::the_unit(id, strength, name, range, Ability::None)
     }
 
-    pub fn the_unit(strength: u8, name: impl Into<String>, range: Range, ability: Ability) -> Self {
+    pub fn the_unit(
+        id: u16,
+        strength: u8,
+        name: impl Into<String>,
+        range: Range,
+        ability: Ability,
+    ) -> Self {
         Self::Unit(Unit {
+            id,
             strength: Strength::Regular(strength),
             name: name.into(),
             ability,
@@ -22,12 +29,19 @@ impl Card {
         })
     }
 
-    pub fn hero(strength: u8, name: impl Into<String>, range: Range) -> Self {
-        Self::the_hero(strength, name, range, Ability::None)
+    pub fn hero(id: u16, strength: u8, name: impl Into<String>, range: Range) -> Self {
+        Self::the_hero(id, strength, name, range, Ability::None)
     }
 
-    pub fn the_hero(strength: u8, name: impl Into<String>, range: Range, ability: Ability) -> Self {
+    pub fn the_hero(
+        id: u16,
+        strength: u8,
+        name: impl Into<String>,
+        range: Range,
+        ability: Ability,
+    ) -> Self {
         Self::Unit(Unit {
+            id,
             strength: Strength::Hero(strength),
             name: name.into(),
             ability,
@@ -65,6 +79,7 @@ impl Strength {
 
 #[derive(Clone)]
 pub struct Unit {
+    pub id: u16,
     pub strength: Strength,
     pub name: String,
     pub ability: Ability,
@@ -78,7 +93,7 @@ pub enum Ability {
     CommandersHorn,
     Medic,
     MoraleBoost,
-    Muster(Group, bool),
+    Muster(Vec<u16>),
     TightBond(Group),
     Scorch(Range),
     Spy,
@@ -159,6 +174,7 @@ mod test {
     impl Unit {
         pub fn new(strength: Strength, ability: Ability, range: Range) -> Self {
             Self {
+                id: 1,
                 strength,
                 name: "test_name".to_string(),
                 ability,

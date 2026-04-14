@@ -54,7 +54,7 @@ pub enum Action {
 
     /// Find all [`crate::card::Ability::Muster`] cards of a kind in both hand and deck
     /// and play immediately
-    Muster(Group),
+    Muster(Vec<u16>),
 
     /// Discard strongest non-hero units from the board
     /// If [`Range::ALL`], take into account all ranges from both players
@@ -138,7 +138,7 @@ impl<C: Controller> Game<C> {
                         self.actions.push(Action::PlayCard(card));
                     }
                 }
-                Action::Muster(group) => self.play_muster(group),
+                Action::Muster(ids) => self.play_muster(&ids),
                 Action::Scorch(range) => self.board.put_scorch(current, range),
                 Action::Spy => self.pick_from_deck(2),
                 Action::Mardrome => {
@@ -171,10 +171,10 @@ impl<C: Controller> Game<C> {
         }
     }
 
-    fn play_muster(&mut self, group: Group) {
+    fn play_muster(&mut self, ids: &[u16]) {
         let current = self.turn.current;
 
-        let cards = self.get_current_player_cards_mut().pick_muster(group);
+        let cards = self.get_current_player_cards_mut().pick_muster(ids);
 
         for card in cards {
             self.board.put(current, card);
