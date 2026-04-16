@@ -9,6 +9,7 @@ use crate::{
 
 mod board;
 mod card;
+mod constants;
 mod deck;
 mod game;
 mod row;

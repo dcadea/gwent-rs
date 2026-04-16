@@ -45,7 +45,7 @@ impl Board {
     pub fn put(&mut self, player: Player, card: Card) -> Action {
         match card {
             Card::Unit(unit) => self.put_unit(player, unit),
-            Card::Special(special) => self.put_special(special),
+            Card::Special(_, special) => self.put_special(special),
         }
     }
 

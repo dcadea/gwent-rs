@@ -5,10 +5,17 @@ use bitflags::bitflags;
 #[derive(Clone)]
 pub enum Card {
     Unit(Unit),
-    Special(Special),
+    Special(u16, Special),
 }
 
 impl Card {
+    pub const fn id(&self) -> u16 {
+        match self {
+            Self::Unit(unit) => unit.id,
+            Self::Special(id, _) => *id,
+        }
+    }
+
     pub fn unit(id: u16, strength: u8, name: impl Into<String>, range: Range) -> Self {
         Self::the_unit(id, strength, name, range, Ability::None)
     }
