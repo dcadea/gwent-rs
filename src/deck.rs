@@ -41,7 +41,7 @@ impl Cards {
 }
 
 impl Cards {
-    pub fn is_hand_empty(&self) -> bool {
+    pub const fn is_hand_empty(&self) -> bool {
         self.hand.is_empty()
     }
 
@@ -540,6 +540,33 @@ mod test {
                 pile: Vec::default(),
             }
         }
+
+        /// Builds a hand/deck from card ids regardless of faction, so a single
+        /// row can mix neutral, faction and special cards freely.
+        pub fn mixed(hand: &[u16], deck: &[u16]) -> Self {
+            let mut lib = Library::default();
+
+            Self {
+                hand: take_any(hand, &mut lib),
+                deck: take_any(deck, &mut lib),
+                pile: Vec::default(),
+            }
+        }
+    }
+
+    fn take_any(ids: &[u16], lib: &mut Library) -> Vec<Card> {
+        ids.iter()
+            .filter_map(|id| {
+                lib.neutral
+                    .remove(id)
+                    .or_else(|| lib.monsters.remove(id))
+                    .or_else(|| lib.nilfgaard.remove(id))
+                    .or_else(|| lib.northern_realms.remove(id))
+                    .or_else(|| lib.skoiatael.remove(id))
+                    .or_else(|| lib.skellige.remove(id))
+                    .or_else(|| lib.special.get_mut(id).and_then(Vec::pop))
+            })
+            .collect()
     }
 
     fn get_from_lib(ids: &[u16], lib: &mut Library, f: Faction) -> Vec<Card> {
