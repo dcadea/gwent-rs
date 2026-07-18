@@ -139,3 +139,43 @@ impl Strengths<'_> {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use std::panic::AssertUnwindSafe;
+
+use crate::{card::Range, side::{Side, Strengths}};
+
+    #[test]
+    fn should_panic_on_get_agile_row() {
+        let side = Side::default();
+
+        let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
+            side.get_row(Range::AGILE);
+        }));
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn should_panic_on_get_agile_row_mut() {
+        let mut side = Side::default();
+
+        let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
+            side.get_row_mut(Range::AGILE);
+        }));
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn should_panic_on_get_strengths_when_agile() {
+        let s = Strengths { melee: &[], ranged: &[], siege: &[] };
+
+        let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
+            s.get(Range::AGILE)
+        }));
+
+        assert!(result.is_err());
+    }
+}
