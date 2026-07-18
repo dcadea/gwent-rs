@@ -585,7 +585,7 @@ mod test {
 
         let mut special_cards: Vec<Card> = ids
             .iter()
-            .filter_map(|id| lib.special.get_mut(id).map(|sc| sc.pop()).flatten())
+            .filter_map(|id| lib.special.get_mut(id).and_then(Vec::pop))
             .collect();
 
         collected.append(&mut special_cards);
