@@ -255,10 +255,11 @@ mod test {
         card::Range,
         constants::{
             ARACHAS_1, ARACHAS_2, ARACHAS_3, BITING_FROST, BLUE_STRIPES_1, BLUE_STRIPES_2,
-            BOTCHLING, CATAPULT_1, CATAPULT_2, CLAN_DIMUN_PIRATE, COMMANDERS_HORN, DANDELION,
-            FIEND, FORKTAIL, ISENGRIM, NEKKER_1, NEKKER_2, NEKKER_3, OLGIERD, REDANIAN_SOLDIER_1,
-            SCORCH, SIEGE_EXPERT_1, SVANRIGE, TORRENTIAL_RAIN, TRISS, VESEMIR, VILLENTRETENMERTH,
-            YENNEFER,
+            BOTCHLING, CATAPULT_1, CATAPULT_2, CLAN_DIMUN_PIRATE, CLEAR_WEATHER, COMMANDERS_HORN,
+            DANDELION, DECOY, DRAGON_HUNTER_1, DRAGON_HUNTER_2, FIEND, FORKTAIL, ISENGRIM,
+            KEIRA_METZ, NEKKER_1, NEKKER_2, NEKKER_3,
+            OLGIERD, REDANIAN_SOLDIER_1, SCORCH, SIEGE_EXPERT_1, SKELLIGE_STORM, SVANRIGE,
+            TORRENTIAL_RAIN, TRISS, VESEMIR, VILLENTRETENMERTH, YENNEFER,
         },
         deck::Cards,
         game::{Controller, Game, Turn},
@@ -306,7 +307,7 @@ mod test {
         }
 
         fn select_from_board(&self) -> Option<(crate::card::Range, usize)> {
-            unimplemented!()
+            Some((Range::MELEE, 0))
         }
     }
 
@@ -315,6 +316,8 @@ mod test {
     struct ScriptedController {
         coin: bool,
         hand: RefCell<VecDeque<usize>>,
+        /// Board slot Decoy pulls back to hand.
+        decoy_target: Option<(Range, usize)>,
     }
 
     impl ScriptedController {
@@ -322,7 +325,13 @@ mod test {
             Self {
                 coin,
                 hand: RefCell::new(hand.iter().copied().collect()),
+                decoy_target: None,
             }
+        }
+
+        fn with_decoy_target(mut self, target: (Range, usize)) -> Self {
+            self.decoy_target = Some(target);
+            self
         }
     }
 
@@ -344,7 +353,7 @@ mod test {
         }
 
         fn select_from_board(&self) -> Option<(Range, usize)> {
-            unimplemented!()
+            self.decoy_target
         }
     }
 
@@ -531,6 +540,27 @@ mod test {
         game.start();
 
         // All three Nekkers end up on P1's melee row.
+        assert_row(
+            &game,
+            Player::P1,
+            Range::MELEE,
+            &[NEKKER_1, NEKKER_2, NEKKER_3],
+        );
+    }
+
+    #[test]
+    fn playing_a_muster_unit_pulls_kin_from_both_hand_and_deck() {
+        // One sibling stays in hand, the other waits in the deck: playing the
+        // first Nekker musters both, so `pick_muster` gathers from the hand as
+        // well as the deck.
+        let mut game = Game::new(
+            TestController::new(true, 1),
+            Cards::monsters(&[NEKKER_1, NEKKER_2], &[NEKKER_3]),
+            Cards::northern_realms(&[], &[]),
+        );
+
+        game.start();
+
         assert_row(
             &game,
             Player::P1,
@@ -799,7 +829,7 @@ mod test {
         // Biting Frost saps the regular unit to 1; the hero keeps its strength.
         let mut game = Game::new(
             TestController::new(true, 3),
-            Cards::mixed(&[TRISS, VESEMIR, BITING_FROST], &[]),
+            Cards::northern_realms(&[TRISS, VESEMIR, BITING_FROST], &[]),
             Cards::monsters(&[], &[]),
         );
 
@@ -814,7 +844,7 @@ mod test {
         // itself, and the hero is immune.
         let mut game = Game::new(
             TestController::new(true, 3),
-            Cards::mixed(&[TRISS, VESEMIR, DANDELION], &[]),
+            Cards::northern_realms(&[TRISS, VESEMIR, DANDELION], &[]),
             Cards::monsters(&[], &[]),
         );
 
@@ -833,7 +863,7 @@ mod test {
         // The horn special doubles every regular unit; the hero is immune.
         let mut game = Game::new(
             TestController::new(true, 3),
-            Cards::mixed(&[TRISS, VESEMIR, COMMANDERS_HORN], &[]),
+            Cards::northern_realms(&[TRISS, VESEMIR, COMMANDERS_HORN], &[]),
             Cards::monsters(&[], &[]),
         );
 
@@ -852,7 +882,7 @@ mod test {
         // With the horn special present, Dandelion is doubled too.
         let mut game = Game::new(
             TestController::new(true, 4),
-            Cards::mixed(&[TRISS, VESEMIR, DANDELION, COMMANDERS_HORN], &[]),
+            Cards::northern_realms(&[TRISS, VESEMIR, DANDELION, COMMANDERS_HORN], &[]),
             Cards::monsters(&[], &[]),
         );
 
@@ -872,7 +902,7 @@ mod test {
         // self-boost.
         let mut game = Game::new(
             TestController::new(true, 3),
-            Cards::mixed(&[TRISS, VESEMIR, OLGIERD], &[]),
+            Cards::northern_realms(&[TRISS, VESEMIR, OLGIERD], &[]),
             Cards::monsters(&[], &[]),
         );
 
@@ -891,7 +921,7 @@ mod test {
         // Order: tight bond (x2) then morale (+1). Bonded units: 4*2 + 1 = 9.
         let mut game = Game::new(
             TestController::new(true, 4),
-            Cards::mixed(&[TRISS, BLUE_STRIPES_1, BLUE_STRIPES_2, OLGIERD], &[]),
+            Cards::northern_realms(&[TRISS, BLUE_STRIPES_1, BLUE_STRIPES_2, OLGIERD], &[]),
             Cards::monsters(&[], &[]),
         );
 
@@ -945,7 +975,7 @@ mod test {
         // Dandelion's horn doubles every other unit (not itself, no special).
         let mut game = Game::new(
             TestController::new(true, 5),
-            Cards::mixed(
+            Cards::northern_realms(
                 &[TRISS, BLUE_STRIPES_1, BLUE_STRIPES_2, OLGIERD, DANDELION],
                 &[],
             ),
@@ -973,7 +1003,7 @@ mod test {
         // Same pre-horn row; the horn special doubles every regular unit.
         let mut game = Game::new(
             TestController::new(true, 5),
-            Cards::mixed(
+            Cards::northern_realms(
                 &[
                     TRISS,
                     BLUE_STRIPES_1,
@@ -1006,7 +1036,7 @@ mod test {
         // Horn unit + horn special: everything (including Dandelion) doubles.
         let mut game = Game::new(
             TestController::new(true, 6),
-            Cards::mixed(
+            Cards::northern_realms(
                 &[
                     TRISS,
                     BLUE_STRIPES_1,
@@ -1158,7 +1188,7 @@ mod test {
         // four steps changes these numbers.
         let mut game = Game::new(
             TestController::new(true, 6),
-            Cards::mixed(
+            Cards::northern_realms(
                 &[
                     TRISS,
                     BLUE_STRIPES_1,
@@ -1184,6 +1214,143 @@ mod test {
                 (BLUE_STRIPES_2, 6),
                 (OLGIERD, 2),
             ],
+        );
+    }
+
+    // --- Decoy returns a unit from the board to the hand ---
+
+    #[test]
+    fn decoy_returns_a_unit_from_the_board_to_the_hand() {
+        // P1 plays Vesemir, then Decoy targeting it (melee, index 0).
+        let mut game = Game::new(
+            TestController::new(true, 2),
+            Cards::northern_realms(&[VESEMIR, DECOY], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.start();
+
+        // Vesemir left the board and is back in hand; Decoy itself is consumed.
+        assert_row(&game, Player::P1, Range::MELEE, &[]);
+        assert_eq!(game.p1.hand_ids(), vec![VESEMIR]);
+    }
+
+    #[test]
+    fn decoy_returns_a_unit_with_an_ability_and_undoes_its_effect() {
+        // P1 plays Vesemir, then Dandelion (commander's horn ability), which
+        // doubles Vesemir to 12. Decoy then pulls Dandelion (melee, index 1)
+        // back to hand, so its horn effect is undone and Vesemir returns to 6.
+        let mut game = Game::new(
+            ScriptedController::new(true, &[0, 1, 0]).with_decoy_target((Range::MELEE, 1)),
+            Cards::northern_realms(&[VESEMIR, DANDELION, DECOY], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.start();
+
+        // Horn gone: Vesemir back to base strength, Dandelion back in hand.
+        assert_cards(&game, Player::P1, Range::MELEE, &[(VESEMIR, 6)]);
+        assert_eq!(game.p1.hand_ids(), vec![DANDELION]);
+    }
+
+    #[test]
+    fn decoy_undoes_a_morale_boost() {
+        // Vesemir (6) is lifted to 7 by Olgierd's morale boost. Decoy pulls
+        // Olgierd (melee, index 1) back to hand, so the boost is undone and
+        // Vesemir returns to 6.
+        let mut game = Game::new(
+            ScriptedController::new(true, &[0, 1, 0]).with_decoy_target((Range::MELEE, 1)),
+            Cards::northern_realms(&[VESEMIR, OLGIERD, DECOY], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.start();
+
+        assert_cards(&game, Player::P1, Range::MELEE, &[(VESEMIR, 6)]);
+        assert_eq!(game.p1.hand_ids(), vec![OLGIERD]);
+    }
+
+    #[test]
+    fn decoy_undoes_a_tight_bond() {
+        // Two bonded Blue Stripes are 4 * 2 = 8 each. Decoy pulls the second
+        // one (melee, index 1) back to hand, dropping the bond count to 1, so
+        // the survivor returns to its base 4.
+        let mut game = Game::new(
+            ScriptedController::new(true, &[0, 1, 0]).with_decoy_target((Range::MELEE, 1)),
+            Cards::northern_realms(&[BLUE_STRIPES_1, BLUE_STRIPES_2, DECOY], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.start();
+
+        assert_cards(&game, Player::P1, Range::MELEE, &[(BLUE_STRIPES_1, 4)]);
+        assert_eq!(game.p1.hand_ids(), vec![BLUE_STRIPES_2]);
+    }
+
+    // --- Clear Weather on the ranged row ---
+
+    #[test]
+    fn clear_weather_does_nothing_when_there_is_no_weather() {
+        // Keira (ranged, 5) sits under no weather; Clear Weather is a no-op.
+        let mut game = Game::new(
+            TestController::new(true, 2),
+            Cards::northern_realms(&[KEIRA_METZ, CLEAR_WEATHER], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.start();
+
+        assert_cards(&game, Player::P1, Range::RANGED, &[(KEIRA_METZ, 5)]);
+    }
+
+    #[test]
+    fn clear_weather_undoes_skellige_storm() {
+        // Skellige Storm saps the ranged row to 1; Clear Weather lifts it back.
+        // Play order (Keira, Storm, Clear) matters, so use the scripted
+        // controller.
+        let mut game = Game::new(
+            ScriptedController::new(true, &[0, 1, 0]),
+            Cards::northern_realms(&[KEIRA_METZ, SKELLIGE_STORM, CLEAR_WEATHER], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.start();
+
+        assert_cards(&game, Player::P1, Range::RANGED, &[(KEIRA_METZ, 5)]);
+    }
+
+    #[test]
+    fn skellige_storm_hits_both_ranged_and_siege_tight_bond_rows() {
+        // Skellige Storm affects the ranged and siege rows. Bonded pairs on
+        // each: weather drops them to 1, then the tight bond doubles: 1 * 2 = 2.
+        let mut game = Game::new(
+            TestController::new(true, 5),
+            Cards::northern_realms(
+                &[
+                    DRAGON_HUNTER_1,
+                    DRAGON_HUNTER_2,
+                    CATAPULT_1,
+                    CATAPULT_2,
+                    SKELLIGE_STORM,
+                ],
+                &[],
+            ),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.start();
+
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::RANGED,
+            &[(DRAGON_HUNTER_1, 2), (DRAGON_HUNTER_2, 2)],
+        );
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::SIEGE,
+            &[(CATAPULT_1, 2), (CATAPULT_2, 2)],
         );
     }
 }

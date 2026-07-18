@@ -502,6 +502,10 @@ mod test {
     };
 
     impl Cards {
+        pub fn hand_ids(&self) -> Vec<u16> {
+            self.hand.iter().map(Card::id).collect()
+        }
+
         pub fn monsters(hand: &[u16], deck: &[u16]) -> Self {
             let mut lib = Library::default();
 
