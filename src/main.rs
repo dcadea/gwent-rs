@@ -1,6 +1,8 @@
 #![allow(unused)]
 use std::io::{self};
 
+use rand::{RngExt, rng};
+
 use crate::{
     card::Range,
     deck::Library,
@@ -27,8 +29,12 @@ fn main() {
 struct ConsoleController;
 
 impl Controller for ConsoleController {
-    fn select_from_hand(&self) -> usize {
-        println!("Select card to play: ");
+    fn toss_coin(&self) -> bool {
+        rng().random_bool(0.5)
+    }
+
+    fn select_from_hand(&self) -> Option<usize> {
+        println!("Select card to play (empty to pass): ");
 
         let mut input = String::new();
 
@@ -36,10 +42,13 @@ impl Controller for ConsoleController {
             .read_line(&mut input)
             .expect("could not read console input");
 
-        input
-            .trim_end()
-            .parse::<usize>()
-            .expect("could not parse card index")
+        let input = input.trim_end();
+
+        if input.is_empty() {
+            return None;
+        }
+
+        Some(input.parse::<usize>().expect("could not parse card index"))
     }
 
     fn select_range(&self) -> card::Range {

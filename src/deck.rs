@@ -1,17 +1,24 @@
 #[allow(clippy::wildcard_imports)]
 use crate::constants::*;
 
-use std::{collections::HashMap, sync::OnceLock};
+use std::collections::HashMap;
 
 use rand::{rng, seq::SliceRandom};
 
-use crate::card::{Ability, Card, Group, Range, Special, Strength, Unit, Weather};
+use crate::card::{Ability, Card, Range, Special, Strength, Unit, Weather};
+
+enum Faction {
+    Monsters,
+    Nilfgaard,
+    NorthernRealms,
+    Skoiatael,
+    Skellige,
+}
 
 pub struct Cards {
     hand: Vec<Card>,
     deck: Vec<Card>,
     pile: Vec<Card>,
-    _side: Vec<Card>,
 }
 
 impl Cards {
@@ -29,12 +36,15 @@ impl Cards {
             hand: hand.to_vec(),
             deck: remaining.to_vec(),
             pile: Vec::default(),
-            _side: Vec::default(),
         }
     }
 }
 
 impl Cards {
+    pub fn is_hand_empty(&self) -> bool {
+        self.hand.is_empty()
+    }
+
     pub fn pick_card(&mut self, i: usize) -> Card {
         self.hand.swap_remove(i)
     }
@@ -474,6 +484,76 @@ impl Default for Library {
             skoiatael: Self::skoiatael(),
             skellige: Self::skellige(),
             special: Self::special(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::collections::HashMap;
+
+    use crate::{
+        card::Card,
+        deck::{Cards, Faction, Library},
+    };
+
+    impl Cards {
+        pub fn monsters(hand: &[u16], deck: &[u16]) -> Self {
+            let mut lib = Library::default();
+
+            let hand = get_from_lib(hand, &mut lib, Faction::Monsters);
+            let deck = get_from_lib(deck, &mut lib, Faction::Monsters);
+
+            Self {
+                hand,
+                deck,
+                pile: Vec::default(),
+            }
+        }
+
+        pub fn northern_realms(hand: &[u16], deck: &[u16]) -> Self {
+            let mut lib = Library::default();
+
+            let hand = get_from_lib(hand, &mut lib, Faction::NorthernRealms);
+            let deck = get_from_lib(deck, &mut lib, Faction::NorthernRealms);
+
+            Self {
+                hand,
+                deck,
+                pile: Vec::default(),
+            }
+        }
+    }
+
+    fn get_from_lib(ids: &[u16], lib: &mut Library, f: Faction) -> Vec<Card> {
+        let mut collected: Vec<Card> = ids.iter().filter_map(|id| lib.neutral.remove(id)).collect();
+
+        let mut faction_cards: Vec<Card> = ids
+            .iter()
+            .filter_map(|id| lib.get_mut(&f).remove(id))
+            .collect();
+
+        collected.append(&mut faction_cards);
+
+        let mut special_cards: Vec<Card> = ids
+            .iter()
+            .filter_map(|id| lib.special.get_mut(id).map(|sc| sc.pop()).flatten())
+            .collect();
+
+        collected.append(&mut special_cards);
+
+        collected
+    }
+
+    impl Library {
+        fn get_mut(&mut self, f: &Faction) -> &mut HashMap<u16, Card> {
+            match f {
+                Faction::Monsters => &mut self.monsters,
+                Faction::Nilfgaard => &mut self.nilfgaard,
+                Faction::NorthernRealms => &mut self.northern_realms,
+                Faction::Skoiatael => &mut self.skoiatael,
+                Faction::Skellige => &mut self.skellige,
+            }
         }
     }
 }

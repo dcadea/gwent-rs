@@ -1,8 +1,6 @@
-use rand::{RngExt, rng};
-
 use crate::{
     board::{Board, Player},
-    card::{Card, Group, Range, Special, Unit},
+    card::{Card, Range, Special, Unit},
     deck::Cards,
 };
 
@@ -32,6 +30,13 @@ impl Turn {
                     Player::P2 => Player::P1,
                 };
             }
+        }
+    }
+
+    const fn pass(&mut self) {
+        match self.current {
+            Player::P1 => self.p1_passed = true,
+            Player::P2 => self.p2_passed = true,
         }
     }
 
@@ -68,6 +73,10 @@ pub enum Action {
     Mardrome,
     CommandersHorn,
     Decoy,
+
+    /// The current player ends their turn
+    Pass,
+
     None,
 }
 
@@ -84,7 +93,7 @@ pub struct Game<C: Controller> {
 
 impl<C: Controller> Game<C> {
     pub fn new(controller: C, p1: Cards, p2: Cards) -> Self {
-        let coin = rng().random_bool(0.5);
+        let coin = controller.toss_coin();
 
         let turn = Turn::new(if coin { Player::P1 } else { Player::P2 });
 
@@ -109,15 +118,25 @@ impl<C: Controller> Game<C> {
 
 impl<C: Controller> Game<C> {
     fn next_turn(&mut self) {
-        let card = self.pick_card();
-        self.actions.push(Action::PlayCard(card));
+        let action = self.pick_action();
+        self.actions.push(action);
 
         self.run_actions();
     }
 
-    fn pick_card(&mut self) -> Card {
-        let i = self.controller.select_from_hand();
-        self.get_current_player_cards_mut().pick_card(i)
+    fn pick_action(&mut self) -> Action {
+        // A player with no cards left is forced to pass, otherwise they choose
+        // whether to play a card or pass (`select_from_hand` returns `None`).
+        // TODO: don't auto-pass on an empty hand once leader ability evaluation
+        // is implemented — a leader ability can still be used with no cards.
+        if self.get_current_player_cards().is_hand_empty() {
+            return Action::Pass;
+        }
+
+        match self.controller.select_from_hand() {
+            Some(i) => Action::PlayCard(self.get_current_player_cards_mut().pick_card(i)),
+            None => Action::Pass,
+        }
     }
 
     fn run_actions(&mut self) {
@@ -151,6 +170,7 @@ impl<C: Controller> Game<C> {
                         .put_row_boost(current, Special::CommandersHorn, range);
                 }
                 Action::Decoy => self.restore_from_board(),
+                Action::Pass => self.turn.pass(),
                 Action::None => break,
             }
         }
@@ -185,6 +205,13 @@ impl<C: Controller> Game<C> {
         self.get_current_player_cards_mut().pick_from_deck(num);
     }
 
+    const fn get_current_player_cards(&self) -> &Cards {
+        match self.turn.current {
+            Player::P1 => &self.p1,
+            Player::P2 => &self.p2,
+        }
+    }
+
     const fn get_current_player_cards_mut(&mut self) -> &mut Cards {
         match self.turn.current {
             Player::P1 => &mut self.p1,
@@ -194,11 +221,196 @@ impl<C: Controller> Game<C> {
 }
 
 pub trait Controller {
-    fn select_from_hand(&self) -> usize;
+    fn toss_coin(&self) -> bool;
+
+    /// Returns the index of the card to play from hand, or `None` to pass.
+    fn select_from_hand(&self) -> Option<usize>;
 
     fn select_range(&self) -> Range;
 
     fn select_from_pile(&self) -> usize;
 
     fn select_from_board(&self) -> Option<(Range, usize)>;
+}
+
+#[cfg(test)]
+mod test {
+    use std::cell::Cell;
+
+    use crate::{
+        board::Player,
+        constants::{BOTCHLING, REDANIAN_SOLDIER_1},
+        deck::Cards,
+        game::{Controller, Game, Turn},
+    };
+
+    struct TestController {
+        coin: bool,
+        /// Number of cards to play (always from index 0) before passing.
+        plays: Cell<usize>,
+    }
+
+    impl TestController {
+        const fn new(coin: bool, plays: usize) -> Self {
+            Self {
+                coin,
+                plays: Cell::new(plays),
+            }
+        }
+
+        const fn with_coin(coin: bool) -> Self {
+            Self::new(coin, 0)
+        }
+    }
+
+    impl Controller for TestController {
+        fn toss_coin(&self) -> bool {
+            self.coin
+        }
+
+        fn select_from_hand(&self) -> Option<usize> {
+            let plays = self.plays.get();
+            if plays == 0 {
+                return None;
+            }
+            self.plays.set(plays - 1);
+            Some(0)
+        }
+
+        fn select_range(&self) -> crate::card::Range {
+            unimplemented!()
+        }
+
+        fn select_from_pile(&self) -> usize {
+            unimplemented!()
+        }
+
+        fn select_from_board(&self) -> Option<(crate::card::Range, usize)> {
+            unimplemented!()
+        }
+    }
+
+    // --- Turn state machine ---
+
+    #[test]
+    fn new_turn_starts_with_given_player_and_no_passes() {
+        let turn = Turn::new(Player::P1);
+
+        assert_eq!(turn.current, Player::P1);
+        assert!(!turn.p1_passed);
+        assert!(!turn.p2_passed);
+        assert!(!turn.both_passed());
+    }
+
+    #[test]
+    fn next_alternates_while_nobody_has_passed() {
+        let mut turn = Turn::new(Player::P1);
+
+        turn.next();
+        assert_eq!(turn.current, Player::P2);
+
+        turn.next();
+        assert_eq!(turn.current, Player::P1);
+    }
+
+    #[test]
+    fn next_sticks_to_p2_after_p1_passed() {
+        let mut turn = Turn::new(Player::P1);
+        turn.pass();
+
+        turn.next();
+        assert_eq!(turn.current, Player::P2);
+
+        turn.next();
+        assert_eq!(turn.current, Player::P2);
+    }
+
+    #[test]
+    fn next_sticks_to_p1_after_p2_passed() {
+        let mut turn = Turn::new(Player::P2);
+        turn.pass();
+
+        turn.next();
+        assert_eq!(turn.current, Player::P1);
+
+        turn.next();
+        assert_eq!(turn.current, Player::P1);
+    }
+
+    #[test]
+    fn next_keeps_current_once_both_passed() {
+        let mut turn = Turn::new(Player::P1);
+        turn.pass();
+        turn.next();
+        turn.pass();
+
+        assert!(turn.both_passed());
+
+        turn.next();
+        assert_eq!(turn.current, Player::P2);
+    }
+
+    #[test]
+    fn pass_marks_only_the_current_player() {
+        let mut turn = Turn::new(Player::P1);
+        turn.pass();
+        assert!(turn.p1_passed);
+        assert!(!turn.p2_passed);
+
+        turn.next();
+        turn.pass();
+        assert!(turn.both_passed());
+    }
+
+    // --- Coin toss decides the starting player ---
+
+    #[test]
+    fn heads_makes_p1_start() {
+        let game = Game::new(
+            TestController::with_coin(true),
+            Cards::monsters(&[], &[]),
+            Cards::northern_realms(&[], &[]),
+        );
+
+        assert_eq!(game.turn.current, Player::P1);
+    }
+
+    #[test]
+    fn tails_makes_p2_start() {
+        let game = Game::new(
+            TestController::with_coin(false),
+            Cards::monsters(&[], &[]),
+            Cards::northern_realms(&[], &[]),
+        );
+
+        assert_eq!(game.turn.current, Player::P2);
+    }
+
+    // --- The game loop terminates once both players pass ---
+
+    #[test]
+    fn game_ends_when_both_players_pass_immediately() {
+        let mut game = Game::new(
+            TestController::with_coin(true),
+            Cards::monsters(&[], &[]),
+            Cards::northern_realms(&[], &[]),
+        );
+
+        game.start();
+
+        assert!(game.turn.both_passed());
+    }
+
+    #[test]
+    fn game_ends_after_players_exhaust_their_hands() {
+        let mut game = Game::new(
+            TestController::new(true, 2),
+            Cards::monsters(&[BOTCHLING], &[]),
+            Cards::northern_realms(&[REDANIAN_SOLDIER_1], &[]),
+        );
+
+        game.start();
+
+        assert!(game.turn.both_passed());
+    }
 }
