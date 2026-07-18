@@ -70,7 +70,7 @@ impl Cards {
     pub fn pick_muster(&mut self, ids: &[u16]) -> Vec<Card> {
         let mut muster = Vec::default();
 
-        for i in self.hand.len() - 1..=0 {
+        for i in (0..self.hand.len()).rev() {
             if let Some(Card::Unit(unit)) = self.hand.get(i)
                 && ids.contains(&unit.id)
             {
@@ -79,11 +79,11 @@ impl Cards {
             }
         }
 
-        for i in self.deck.len() - 1..=0 {
+        for i in (0..self.deck.len()).rev() {
             if let Some(Card::Unit(unit)) = self.deck.get(i)
                 && ids.contains(&unit.id)
             {
-                let card = self.hand.swap_remove(i);
+                let card = self.deck.swap_remove(i);
                 muster.push(card);
             }
         }
@@ -93,6 +93,10 @@ impl Cards {
 
     pub fn add_unit(&mut self, unit: Unit) {
         self.hand.push(Card::Unit(unit));
+    }
+
+    pub fn discard(&mut self, unit: Unit) {
+        self.pile.push(Card::Unit(unit));
     }
 }
 
@@ -516,6 +520,19 @@ mod test {
 
             let hand = get_from_lib(hand, &mut lib, Faction::NorthernRealms);
             let deck = get_from_lib(deck, &mut lib, Faction::NorthernRealms);
+
+            Self {
+                hand,
+                deck,
+                pile: Vec::default(),
+            }
+        }
+
+        pub fn skellige(hand: &[u16], deck: &[u16]) -> Self {
+            let mut lib = Library::default();
+
+            let hand = get_from_lib(hand, &mut lib, Faction::Skellige);
+            let deck = get_from_lib(deck, &mut lib, Faction::Skellige);
 
             Self {
                 hand,

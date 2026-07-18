@@ -78,12 +78,13 @@ impl Side {
         self.get_row_mut(range).put_special(boost);
     }
 
-    pub fn put_scorch(&mut self, max_strength: u8, range: Range) {
+    pub fn put_scorch(&mut self, max_strength: u8, range: Range) -> Vec<Unit> {
         match range {
             Range::ALL => {
-                self.melee.put_scorch(max_strength);
-                self.ranged.put_scorch(max_strength);
-                self.siege.put_scorch(max_strength);
+                let mut discarded = self.melee.put_scorch(max_strength);
+                discarded.append(&mut self.ranged.put_scorch(max_strength));
+                discarded.append(&mut self.siege.put_scorch(max_strength));
+                discarded
             }
             range => self.get_row_mut(range).put_scorch(max_strength),
         }
@@ -111,6 +112,13 @@ impl Side {
             Range::SIEGE => &mut self.siege,
             _ => unreachable!(),
         }
+    }
+}
+
+#[cfg(test)]
+impl Side {
+    pub fn get_ids(&self, range: Range) -> Vec<u16> {
+        self.get_row(range).get_ids()
     }
 }
 

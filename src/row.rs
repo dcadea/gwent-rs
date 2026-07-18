@@ -67,24 +67,27 @@ impl Row {
         self.is_dirty = true;
     }
 
-    pub fn put_scorch(&mut self, max_strength: u8) {
+    /// Removes every non-hero unit whose strength equals `max_strength` and
+    /// returns them so the caller can move them to the discard pile.
+    pub fn put_scorch(&mut self, max_strength: u8) -> Vec<Unit> {
         self.update();
 
-        let mut was_discarded = false;
+        let mut discarded = Vec::new();
 
-        for i in self.units.len() - 1..=0 {
+        for i in (0..self.units.len()).rev() {
             if let Strength::Regular(strength) = self.strengths[i]
                 && strength == max_strength
             {
-                self.units.swap_remove(i);
                 self.strengths.swap_remove(i);
-                was_discarded = true;
+                discarded.push(self.units.swap_remove(i));
             }
         }
 
-        if was_discarded {
+        if !discarded.is_empty() {
             self.is_dirty = true;
         }
+
+        discarded
     }
 
     pub fn remove_unit(&mut self, i: usize) -> Unit {
@@ -216,6 +219,13 @@ impl Row {
                 self.strengths[i].mul_assign(2);
             }
         }
+    }
+}
+
+#[cfg(test)]
+impl Row {
+    pub fn get_ids(&self) -> Vec<u16> {
+        self.units.iter().map(|unit| unit.id).collect()
     }
 }
 

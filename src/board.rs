@@ -10,6 +10,15 @@ pub enum Player {
     P2,
 }
 
+impl Player {
+    const fn opponent(self) -> Self {
+        match self {
+            Self::P1 => Self::P2,
+            Self::P2 => Self::P1,
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct Board {
     player1: Side,
@@ -61,17 +70,32 @@ impl Board {
             .put_row_boost(boost, range);
     }
 
-    pub fn put_scorch(&mut self, player: Player, range: Range) {
+    /// Scorches the board and returns every discarded unit tagged with the
+    /// player who owned it, so the caller can move them to the right pile.
+    pub fn put_scorch(&mut self, player: Player, range: Range) -> Vec<(Player, Unit)> {
         self.update();
+
+        let mut scorched = Vec::new();
 
         // Global scorch
         if range == Range::ALL {
             if let Some(max_strength) = self.get_max_row_strength(range) {
-                self.player1.put_scorch(max_strength, Range::ALL);
-                self.player2.put_scorch(max_strength, Range::ALL);
+                scorched.extend(
+                    self.player1
+                        .put_scorch(max_strength, Range::ALL)
+                        .into_iter()
+                        .map(|unit| (Player::P1, unit)),
+                );
+                scorched.extend(
+                    self.player2
+                        .put_scorch(max_strength, Range::ALL)
+                        .into_iter()
+                        .map(|unit| (Player::P2, unit)),
+                );
             }
         } else {
             // Row target scorch
+            let owner = player.opponent();
             let opponent_side = self.get_opponent_player_mut(player);
 
             let total_row_strength = opponent_side.get_total_row_strength(range);
@@ -80,9 +104,16 @@ impl Board {
             if total_row_strength >= 10
                 && let Some(max_row_strength) = opponent_side.get_max_row_strength(range)
             {
-                opponent_side.put_scorch(max_row_strength, range);
+                scorched.extend(
+                    opponent_side
+                        .put_scorch(max_row_strength, range)
+                        .into_iter()
+                        .map(|unit| (owner, unit)),
+                );
             }
         }
+
+        scorched
     }
 
     pub fn remove_unit(&mut self, player: Player, range: Range, i: usize) -> Unit {
@@ -152,4 +183,14 @@ impl Board {
 pub struct Strengths<'a> {
     pub p1: side::Strengths<'a>,
     pub p2: side::Strengths<'a>,
+}
+
+#[cfg(test)]
+impl Board {
+    pub fn get_ids(&self, player: Player, range: Range) -> Vec<u16> {
+        match player {
+            Player::P1 => self.player1.get_ids(range),
+            Player::P2 => self.player2.get_ids(range),
+        }
+    }
 }

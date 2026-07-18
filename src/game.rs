@@ -158,7 +158,11 @@ impl<C: Controller> Game<C> {
                     }
                 }
                 Action::Muster(ids) => self.play_muster(&ids),
-                Action::Scorch(range) => self.board.put_scorch(current, range),
+                Action::Scorch(range) => {
+                    for (owner, unit) in self.board.put_scorch(current, range) {
+                        self.get_player_cards_mut(owner).discard(unit);
+                    }
+                }
                 Action::Spy => self.pick_from_deck(2),
                 Action::Mardrome => {
                     let range = self.controller.select_range();
@@ -212,6 +216,13 @@ impl<C: Controller> Game<C> {
         }
     }
 
+    const fn get_player_cards_mut(&mut self, player: Player) -> &mut Cards {
+        match player {
+            Player::P1 => &mut self.p1,
+            Player::P2 => &mut self.p2,
+        }
+    }
+
     const fn get_current_player_cards_mut(&mut self) -> &mut Cards {
         match self.turn.current {
             Player::P1 => &mut self.p1,
@@ -235,11 +246,17 @@ pub trait Controller {
 
 #[cfg(test)]
 mod test {
-    use std::cell::Cell;
+    use std::cell::{Cell, RefCell};
+    use std::collections::VecDeque;
 
     use crate::{
         board::Player,
-        constants::{BOTCHLING, REDANIAN_SOLDIER_1},
+        card::Range,
+        constants::{
+            ARACHAS_1, ARACHAS_2, ARACHAS_3, BOTCHLING, CLAN_DIMUN_PIRATE, FIEND, FORKTAIL,
+            NEKKER_1, NEKKER_2, NEKKER_3, REDANIAN_SOLDIER_1, SCORCH, SVANRIGE, TRISS,
+            VILLENTRETENMERTH, YENNEFER,
+        },
         deck::Cards,
         game::{Controller, Game, Turn},
     };
@@ -282,12 +299,62 @@ mod test {
         }
 
         fn select_from_pile(&self) -> usize {
-            unimplemented!()
+            0
         }
 
         fn select_from_board(&self) -> Option<(crate::card::Range, usize)> {
             unimplemented!()
         }
+    }
+
+    /// Plays an explicit sequence of hand indices, then passes. Needed when a
+    /// test depends on the exact order cards are played.
+    struct ScriptedController {
+        coin: bool,
+        hand: RefCell<VecDeque<usize>>,
+    }
+
+    impl ScriptedController {
+        fn new(coin: bool, hand: &[usize]) -> Self {
+            Self {
+                coin,
+                hand: RefCell::new(hand.iter().copied().collect()),
+            }
+        }
+    }
+
+    impl Controller for ScriptedController {
+        fn toss_coin(&self) -> bool {
+            self.coin
+        }
+
+        fn select_from_hand(&self) -> Option<usize> {
+            self.hand.borrow_mut().pop_front()
+        }
+
+        fn select_range(&self) -> Range {
+            unimplemented!()
+        }
+
+        fn select_from_pile(&self) -> usize {
+            0
+        }
+
+        fn select_from_board(&self) -> Option<(Range, usize)> {
+            unimplemented!()
+        }
+    }
+
+    /// Asserts that a player's row holds exactly the given card ids (order
+    /// independent).
+    fn assert_row<C: Controller>(game: &Game<C>, player: Player, range: Range, expected: &[u16]) {
+        let mut actual = game.board.get_ids(player, range);
+        actual.sort_unstable();
+
+        let mut expected = expected.to_vec();
+        expected.sort_unstable();
+
+        assert_eq!(actual, expected);
     }
 
     // --- Turn state machine ---
@@ -412,5 +479,163 @@ mod test {
         game.start();
 
         assert!(game.turn.both_passed());
+    }
+
+    // --- Card abilities resolve end-to-end through the action queue ---
+
+    #[test]
+    fn playing_a_muster_unit_pulls_its_kin_from_the_deck() {
+        // P1 holds one Nekker; its two siblings wait in the deck.
+        let mut game = Game::new(
+            TestController::new(true, 1),
+            Cards::monsters(&[NEKKER_1], &[NEKKER_2, NEKKER_3]),
+            Cards::northern_realms(&[], &[]),
+        );
+
+        game.start();
+
+        // All three Nekkers end up on P1's melee row.
+        assert_row(&game, Player::P1, Range::MELEE, &[NEKKER_1, NEKKER_2, NEKKER_3]);
+    }
+
+    #[test]
+    fn playing_scorch_removes_the_strongest_unit_from_the_board() {
+        // P1 plays a lone Botchling (strength 4); P2 answers with Scorch.
+        let mut game = Game::new(
+            TestController::new(true, 2),
+            Cards::monsters(&[BOTCHLING], &[]),
+            Cards::northern_realms(&[SCORCH], &[]),
+        );
+
+        game.start();
+
+        // Botchling was the strongest unit, so global scorch clears it.
+        assert_row(&game, Player::P1, Range::MELEE, &[]);
+        assert_row(&game, Player::P2, Range::MELEE, &[]);
+    }
+
+    #[test]
+    fn a_units_global_scorch_ability_clears_the_strongest_units_on_both_sides() {
+        // P1 plays a Fiend (6); P2 answers with Clan Dimun Pirate (6), whose
+        // ability scorches the whole battlefield — both 6s go, including itself.
+        let mut game = Game::new(
+            TestController::new(true, 2),
+            Cards::monsters(&[FIEND], &[]),
+            Cards::skellige(&[CLAN_DIMUN_PIRATE], &[]),
+        );
+
+        game.start();
+
+        assert_row(&game, Player::P1, Range::MELEE, &[]);
+        assert_row(&game, Player::P2, Range::RANGED, &[]);
+    }
+
+    #[test]
+    fn global_scorch_ability_kills_the_caster_when_the_opponent_matches_its_strength() {
+        // P1 fields a Fiend (6). P2 plays Svanrige (4) and then Clan Dimun
+        // Pirate (6), whose global scorch fires. The board-wide max is 6 — tied
+        // between the Fiend and the pirate itself — so both are destroyed while
+        // Svanrige (4) survives on the pirate's own side.
+        //
+        // Call order is P1, P2, P2 (P1 passes with an empty hand before the
+        // pirate lands), so every scripted index is 0.
+        let mut game = Game::new(
+            ScriptedController::new(true, &[0, 0, 0]),
+            Cards::monsters(&[FIEND], &[]),
+            Cards::skellige(&[SVANRIGE, CLAN_DIMUN_PIRATE], &[]),
+        );
+
+        game.start();
+
+        // The Fiend and the pirate both went to strength 6 and were scorched...
+        assert_row(&game, Player::P1, Range::MELEE, &[]);
+        assert_row(&game, Player::P2, Range::RANGED, &[]);
+        // ...but the weaker Svanrige (4) is untouched.
+        assert_row(&game, Player::P2, Range::MELEE, &[SVANRIGE]);
+    }
+
+    #[test]
+    fn a_units_row_scorch_ability_hits_only_the_targeted_opponent_row() {
+        // P2 musters three Arachas onto its melee row (4 + 4 + 4 = 12, past the
+        // 10-strength threshold). P1 then plays Villentretenmerth, whose melee
+        // scorch clears the strongest units on P2's melee row only.
+        let mut game = Game::new(
+            TestController::new(false, 2),
+            Cards::northern_realms(&[VILLENTRETENMERTH], &[]),
+            Cards::monsters(&[ARACHAS_1], &[ARACHAS_2, ARACHAS_3]),
+        );
+
+        game.start();
+
+        // P2's whole melee row (all the Arachas) is scorched away...
+        assert_row(&game, Player::P2, Range::MELEE, &[]);
+        // ...while Villentretenmerth survives on P1's own melee row.
+        assert_row(&game, Player::P1, Range::MELEE, &[VILLENTRETENMERTH]);
+    }
+
+    #[test]
+    fn row_scorch_does_nothing_below_the_ten_strength_threshold() {
+        // P2's melee row totals 5 + 4 = 9, just under the threshold, so
+        // Villentretenmerth's melee scorch must leave both units alone.
+        // P1 plays a throwaway Redanian first so Villen resolves only after P2
+        // has both units down. Script indices follow the P2, P1, P2, P1 call
+        // order (P2 starts on tails).
+        let mut game = Game::new(
+            ScriptedController::new(false, &[0, 1, 0, 0]),
+            Cards::northern_realms(&[REDANIAN_SOLDIER_1, VILLENTRETENMERTH], &[]),
+            Cards::monsters(&[FORKTAIL, BOTCHLING], &[]),
+        );
+
+        game.start();
+
+        // Under threshold: both units stay put.
+        assert_row(&game, Player::P2, Range::MELEE, &[FORKTAIL, BOTCHLING]);
+    }
+
+    #[test]
+    fn row_scorch_counts_heroes_toward_the_threshold_but_never_removes_them() {
+        // P2's melee row is Triss (hero, 7) + Forktail (5) = 12, clearing the
+        // threshold. Villentretenmerth's melee scorch removes the strongest
+        // *non-hero* (Forktail, 5); the hero survives even though it is
+        // stronger.
+        let mut game = Game::new(
+            ScriptedController::new(false, &[0, 1, 0, 0]),
+            Cards::northern_realms(&[REDANIAN_SOLDIER_1, VILLENTRETENMERTH], &[]),
+            Cards::monsters(&[TRISS, FORKTAIL], &[]),
+        );
+
+        game.start();
+
+        // Only Triss remains — Forktail was scorched, the hero was not.
+        assert_row(&game, Player::P2, Range::MELEE, &[TRISS]);
+    }
+
+    #[test]
+    fn muster_never_pulls_from_the_discard_pile() {
+        // P1 must play, in order: Nekker, then Scorch, then Yennefer; P2 passes.
+        //   1. Nekker musters its two siblings from the deck -> three Nekkers on
+        //      the melee row.
+        //   2. Scorch clears the whole row (all strength 2) into P1's pile.
+        //   3. Yennefer (Medic) restores one Nekker from the pile and replays
+        //      it. That replay re-triggers Muster, which must ignore the two
+        //      Nekkers still sitting in the pile.
+        //
+        // `Cards::monsters` lays the hand out as [neutral, faction, special] =
+        // [Yennefer, Nekker, Scorch]. Accounting for `pick_card`'s
+        // `swap_remove`, the indices below play Nekker, then Scorch, then
+        // Yennefer.
+        let mut game = Game::new(
+            ScriptedController::new(true, &[1, 1, 0]),
+            Cards::monsters(&[YENNEFER, NEKKER_1, SCORCH], &[NEKKER_2, NEKKER_3]),
+            Cards::northern_realms(&[], &[]),
+        );
+
+        game.start();
+
+        // Exactly one Nekker is back (the medic's), proving Muster did not drag
+        // the other two out of the pile.
+        assert_eq!(game.board.get_ids(Player::P1, Range::MELEE).len(), 1);
+        // Yennefer herself stands on the ranged row.
+        assert_row(&game, Player::P1, Range::RANGED, &[YENNEFER]);
     }
 }
