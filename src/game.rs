@@ -741,19 +741,27 @@ mod test {
 
     #[test]
     fn tight_bond_multiplies_the_weather_reduced_strength() {
-        // P1 fields two Catapults (tight bond, siege) and plays Torrential Rain
-        // over the siege row. Play order is irrelevant to the final strengths,
-        // so the plays-counter controller (always index 0) is enough.
+        // Step through so the tight bond can be seen before and after weather.
+        // P2 (tails) passes first, then P1 plays the two Catapults and rain.
         let mut game = Game::new(
-            TestController::new(true, 3),
+            ScriptedController::new(false, &[0, 1, 0]),
             Cards::northern_realms(&[CATAPULT_1, CATAPULT_2, TORRENTIAL_RAIN], &[]),
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.next_turn(); // P2 passes
+        game.next_turn(); // Catapult 1
+        game.next_turn(); // Catapult 2
+        // Bonded pair before weather: 8 * 2 = 16 each.
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::SIEGE,
+            &[(CATAPULT_1, 16), (CATAPULT_2, 16)],
+        );
 
-        // Weather first drops each Catapult to 1, then the tight bond (2 units)
-        // doubles it: 1 * 2 = 2.
+        game.next_turn(); // Torrential Rain
+        // Weather drops each Catapult to 1, then the tight bond doubles: 1*2 = 2.
         assert_cards(
             &game,
             Player::P1,
@@ -826,15 +834,22 @@ mod test {
 
     #[test]
     fn weather_does_not_affect_heroes() {
-        // Biting Frost saps the regular unit to 1; the hero keeps its strength.
+        // Step through the turns to assert the row before and after weather.
+        // P2 (tails) passes first, then P1 plays Triss, Vesemir, Biting Frost.
         let mut game = Game::new(
-            TestController::new(true, 3),
+            ScriptedController::new(false, &[0, 1, 0]),
             Cards::northern_realms(&[TRISS, VESEMIR, BITING_FROST], &[]),
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.next_turn(); // P2 passes
+        game.next_turn(); // Triss
+        game.next_turn(); // Vesemir
+        // Before weather: both at their base strength.
+        assert_cards(&game, Player::P1, Range::MELEE, &[(TRISS, 7), (VESEMIR, 6)]);
 
+        game.next_turn(); // Biting Frost
+        // After weather: the regular unit drops to 1, the hero is untouched.
         assert_cards(&game, Player::P1, Range::MELEE, &[(TRISS, 7), (VESEMIR, 1)]);
     }
 
@@ -843,13 +858,18 @@ mod test {
         // Dandelion's horn ability doubles every other unit; it never doubles
         // itself, and the hero is immune.
         let mut game = Game::new(
-            TestController::new(true, 3),
+            ScriptedController::new(false, &[0, 1, 0]),
             Cards::northern_realms(&[TRISS, VESEMIR, DANDELION], &[]),
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.next_turn(); // P2 passes
+        game.next_turn(); // Triss
+        game.next_turn(); // Vesemir
+        // Before the horn lands.
+        assert_cards(&game, Player::P1, Range::MELEE, &[(TRISS, 7), (VESEMIR, 6)]);
 
+        game.next_turn(); // Dandelion (horn ability)
         assert_cards(
             &game,
             Player::P1,
@@ -862,19 +882,19 @@ mod test {
     fn commanders_horn_special_doubles_the_whole_row() {
         // The horn special doubles every regular unit; the hero is immune.
         let mut game = Game::new(
-            TestController::new(true, 3),
+            ScriptedController::new(false, &[0, 1, 0]),
             Cards::northern_realms(&[TRISS, VESEMIR, COMMANDERS_HORN], &[]),
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.next_turn(); // P2 passes
+        game.next_turn(); // Triss
+        game.next_turn(); // Vesemir
+        // Before the horn lands.
+        assert_cards(&game, Player::P1, Range::MELEE, &[(TRISS, 7), (VESEMIR, 6)]);
 
-        assert_cards(
-            &game,
-            Player::P1,
-            Range::MELEE,
-            &[(TRISS, 7), (VESEMIR, 12)],
-        );
+        game.next_turn(); // Commander's Horn (special)
+        assert_cards(&game, Player::P1, Range::MELEE, &[(TRISS, 7), (VESEMIR, 12)]);
     }
 
     #[test]
@@ -1186,8 +1206,13 @@ mod test {
         // Olgierd: 1 (weather) -> 1 (no bond) -> 1 (self, no boost) -> 2 (horn).
         // Triss (hero) ignores every step and stays at 7. Any reordering of the
         // four steps changes these numbers.
+        // Stepped so the running strength is asserted after each condition.
+        // P2 (tails) passes first, then P1 plays: Triss, Blue Stripes 1, Blue
+        // Stripes 2, Olgierd, Commander's Horn, Biting Frost. The scripted
+        // indices account for `pick_card`'s `swap_remove` reshuffling the hand
+        // (laid out as [Triss, Olgierd, Blue 1, Blue 2, Horn, Frost]).
         let mut game = Game::new(
-            TestController::new(true, 6),
+            ScriptedController::new(false, &[0, 2, 3, 1, 1, 0]),
             Cards::northern_realms(
                 &[
                     TRISS,
@@ -1202,8 +1227,51 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.next_turn(); // P2 passes
 
+        game.next_turn(); // Triss (hero, immune to everything that follows)
+        assert_cards(&game, Player::P1, Range::MELEE, &[(TRISS, 7)]);
+
+        game.next_turn(); // Blue Stripes 1 -> bond of one, no multiplier yet
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::MELEE,
+            &[(TRISS, 7), (BLUE_STRIPES_1, 4)],
+        );
+
+        game.next_turn(); // Blue Stripes 2 -> tight bond doubles both: 4*2 = 8
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::MELEE,
+            &[(TRISS, 7), (BLUE_STRIPES_1, 8), (BLUE_STRIPES_2, 8)],
+        );
+
+        game.next_turn(); // Olgierd -> morale +1 to the pair; Olgierd at base 6
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::MELEE,
+            &[(TRISS, 7), (BLUE_STRIPES_1, 9), (BLUE_STRIPES_2, 9), (OLGIERD, 6)],
+        );
+
+        game.next_turn(); // Commander's Horn -> doubles every regular unit
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::MELEE,
+            &[
+                (TRISS, 7),
+                (BLUE_STRIPES_1, 18),
+                (BLUE_STRIPES_2, 18),
+                (OLGIERD, 12),
+            ],
+        );
+
+        game.next_turn(); // Biting Frost -> whole chain recomputed under weather
+        // weather 4->1, bond *2 = 2, morale +1 = 3, horn *2 = 6 for the pair;
+        // Olgierd 1 -> horn 2; Triss (hero) stays 7 throughout.
         assert_cards(
             &game,
             Player::P1,
@@ -1352,5 +1420,26 @@ mod test {
             Range::SIEGE,
             &[(CATAPULT_1, 2), (CATAPULT_2, 2)],
         );
+    }
+
+    #[test]
+    fn the_same_weather_played_twice_does_nothing_extra() {
+        // P1 plays Vesemir then Biting Frost; P2 plays a second Biting Frost.
+        // The row is already under frost, so the second copy is a no-op — the
+        // unit stays at 1 rather than stacking any further.
+        let mut game = Game::new(
+            TestController::new(true, 3),
+            Cards::northern_realms(&[VESEMIR, BITING_FROST], &[]),
+            Cards::monsters(&[BITING_FROST], &[]),
+        );
+
+        game.next_turn(); // P1 plays Vesemir
+        assert_cards(&game, Player::P1, Range::MELEE, &[(VESEMIR, 6)]);
+
+        game.next_turn(); // P2 plays the first Biting Frost -> Vesemir drops to 1
+        assert_cards(&game, Player::P1, Range::MELEE, &[(VESEMIR, 1)]);
+
+        game.next_turn(); // P1 plays a second Biting Frost -> already frosted, no change
+        assert_cards(&game, Player::P1, Range::MELEE, &[(VESEMIR, 1)]);
     }
 }
