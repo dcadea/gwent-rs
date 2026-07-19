@@ -255,7 +255,9 @@ mod test {
         card::Range,
         constants::{
             ARACHAS_1, ARACHAS_2, ARACHAS_3, BITING_FROST, BLUE_STRIPES_1, BLUE_STRIPES_2,
-            BOTCHLING, CATAPULT_1, CATAPULT_2, CLAN_DIMUN_PIRATE, CLEAR_WEATHER, COMMANDERS_HORN,
+            BOTCHLING, CATAPULT_1, CATAPULT_2, CERYS, CLAN_DIMUN_PIRATE, CLEAR_WEATHER,
+            COMMANDERS_HORN, DRUMMOND_SHIELDMAIDEN_1, DRUMMOND_SHIELDMAIDEN_2,
+            DRUMMOND_SHIELDMAIDEN_3,
             BIRNA_BRAN, DANDELION, DECOY, DRAGON_HUNTER_1, DRAGON_HUNTER_2, DUN_BANNER_MEDIC,
             ETOLIAN_ARCHERS_1, ETOLIAN_ARCHERS_2, FIEND, FORKTAIL, ISENGRIM, KEIRA_METZ, NEKKER_1,
             NEKKER_2, NEKKER_3, PRINCE_STENNIS, ZOLTAN,
@@ -1705,5 +1707,251 @@ mod test {
         game.next_turn(); // P1 scorches: spy (5) is the max and dies
         assert_cards(&game, Player::P2, Range::MELEE, &[]);
         assert_cards(&game, Player::P1, Range::MELEE, &[(REDANIAN_SOLDIER_1, 1)]);
+    }
+
+    // --- Cerys musters Drummond Shieldmaidens (tight bond); muster reads only
+    // hand + deck, never the pile. Each mustered maiden is 4 * (count on row).
+
+    #[test]
+    fn cerys_musters_shieldmaidens_all_from_hand() {
+        // Cerys + all three maidens in hand -> bond of three: 4 * 3 = 12 each.
+        let mut game = Game::new(
+            TestController::new(true, 1),
+            Cards::skellige(
+                &[
+                    CERYS,
+                    DRUMMOND_SHIELDMAIDEN_1,
+                    DRUMMOND_SHIELDMAIDEN_2,
+                    DRUMMOND_SHIELDMAIDEN_3,
+                ],
+                &[],
+            ),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.start();
+
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::MELEE,
+            &[
+                (CERYS, 10),
+                (DRUMMOND_SHIELDMAIDEN_1, 12),
+                (DRUMMOND_SHIELDMAIDEN_2, 12),
+                (DRUMMOND_SHIELDMAIDEN_3, 12),
+            ],
+        );
+    }
+
+    #[test]
+    fn cerys_musters_shieldmaidens_from_hand_and_deck() {
+        // One maiden in hand, two in the deck -> still all three: 12 each.
+        let mut game = Game::new(
+            TestController::new(true, 1),
+            Cards::skellige(
+                &[CERYS, DRUMMOND_SHIELDMAIDEN_1],
+                &[DRUMMOND_SHIELDMAIDEN_2, DRUMMOND_SHIELDMAIDEN_3],
+            ),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.start();
+
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::MELEE,
+            &[
+                (CERYS, 10),
+                (DRUMMOND_SHIELDMAIDEN_1, 12),
+                (DRUMMOND_SHIELDMAIDEN_2, 12),
+                (DRUMMOND_SHIELDMAIDEN_3, 12),
+            ],
+        );
+    }
+
+    #[test]
+    fn cerys_musters_shieldmaidens_all_from_deck() {
+        // All three maidens wait in the deck -> all three mustered: 12 each.
+        let mut game = Game::new(
+            TestController::new(true, 1),
+            Cards::skellige(
+                &[CERYS],
+                &[
+                    DRUMMOND_SHIELDMAIDEN_1,
+                    DRUMMOND_SHIELDMAIDEN_2,
+                    DRUMMOND_SHIELDMAIDEN_3,
+                ],
+            ),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.start();
+
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::MELEE,
+            &[
+                (CERYS, 10),
+                (DRUMMOND_SHIELDMAIDEN_1, 12),
+                (DRUMMOND_SHIELDMAIDEN_2, 12),
+                (DRUMMOND_SHIELDMAIDEN_3, 12),
+            ],
+        );
+    }
+
+    #[test]
+    fn cerys_ignores_the_maiden_sitting_in_the_pile() {
+        // Maiden 1 is scorched into the pile; maidens 2 and 3 stay in hand.
+        // Cerys musters only the hand copies -> bond of two: 4 * 2 = 8 each.
+        // Play order: maiden 1, Scorch, Cerys (maidens 2 & 3 pulled by muster).
+        let mut game = Game::new(
+            ScriptedController::new(false, &[0, 0, 1]),
+            Cards::skellige(
+                &[
+                    DRUMMOND_SHIELDMAIDEN_1,
+                    SCORCH,
+                    CERYS,
+                    DRUMMOND_SHIELDMAIDEN_2,
+                    DRUMMOND_SHIELDMAIDEN_3,
+                ],
+                &[],
+            ),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.next_turn(); // P2 passes
+        game.next_turn(); // Maiden 1 alone -> bond of one, strength 4
+        assert_cards(&game, Player::P1, Range::MELEE, &[(DRUMMOND_SHIELDMAIDEN_1, 4)]);
+
+        game.next_turn(); // Scorch -> Maiden 1 to the pile
+        assert_cards(&game, Player::P1, Range::MELEE, &[]);
+
+        game.next_turn(); // Cerys musters maidens 2 & 3 from hand (pile ignored)
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::MELEE,
+            &[
+                (CERYS, 10),
+                (DRUMMOND_SHIELDMAIDEN_2, 8),
+                (DRUMMOND_SHIELDMAIDEN_3, 8),
+            ],
+        );
+    }
+
+    #[test]
+    fn cerys_musters_only_the_deck_maiden_when_two_are_in_the_pile() {
+        // Maidens 1 and 2 are scorched into the pile; maiden 3 waits in the
+        // deck. Cerys musters only maiden 3 -> bond of one, strength 4.
+        // Play order: maiden 1, maiden 2, Scorch, Cerys.
+        let mut game = Game::new(
+            ScriptedController::new(false, &[0, 1, 0, 0]),
+            Cards::skellige(
+                &[
+                    DRUMMOND_SHIELDMAIDEN_1,
+                    DRUMMOND_SHIELDMAIDEN_2,
+                    SCORCH,
+                    CERYS,
+                ],
+                &[DRUMMOND_SHIELDMAIDEN_3],
+            ),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.next_turn(); // P2 passes
+        game.next_turn(); // Maiden 1
+        game.next_turn(); // Maiden 2 -> bond of two: 8 each
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::MELEE,
+            &[(DRUMMOND_SHIELDMAIDEN_1, 8), (DRUMMOND_SHIELDMAIDEN_2, 8)],
+        );
+
+        game.next_turn(); // Scorch -> both maidens to the pile
+        assert_cards(&game, Player::P1, Range::MELEE, &[]);
+
+        game.next_turn(); // Cerys musters only maiden 3 from the deck
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::MELEE,
+            &[(CERYS, 10), (DRUMMOND_SHIELDMAIDEN_3, 4)],
+        );
+    }
+
+    #[test]
+    fn cerys_musters_nothing_when_all_maidens_are_in_the_pile() {
+        // All three maidens are scorched into the pile, so Cerys musters none —
+        // only Cerys lands. Play order: maidens 1, 2, 3, Scorch, Cerys.
+        let mut game = Game::new(
+            ScriptedController::new(false, &[0, 1, 2, 0, 0]),
+            Cards::skellige(
+                &[
+                    DRUMMOND_SHIELDMAIDEN_1,
+                    DRUMMOND_SHIELDMAIDEN_2,
+                    DRUMMOND_SHIELDMAIDEN_3,
+                    SCORCH,
+                    CERYS,
+                ],
+                &[],
+            ),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.next_turn(); // P2 passes
+        game.next_turn(); // Maiden 1
+        game.next_turn(); // Maiden 2
+        game.next_turn(); // Maiden 3 -> bond of three: 12 each
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::MELEE,
+            &[
+                (DRUMMOND_SHIELDMAIDEN_1, 12),
+                (DRUMMOND_SHIELDMAIDEN_2, 12),
+                (DRUMMOND_SHIELDMAIDEN_3, 12),
+            ],
+        );
+
+        game.next_turn(); // Scorch -> all three to the pile
+        assert_cards(&game, Player::P1, Range::MELEE, &[]);
+
+        game.next_turn(); // Cerys musters nothing
+        assert_cards(&game, Player::P1, Range::MELEE, &[(CERYS, 10)]);
+    }
+
+    #[test]
+    fn a_maiden_played_before_cerys_joins_the_mustered_bond() {
+        // Maiden 1 is on the board first; Cerys then musters maidens 2 & 3 from
+        // the deck, forming a bond of three so all become 12.
+        let mut game = Game::new(
+            TestController::new(true, 2),
+            Cards::skellige(
+                &[DRUMMOND_SHIELDMAIDEN_1, CERYS],
+                &[DRUMMOND_SHIELDMAIDEN_2, DRUMMOND_SHIELDMAIDEN_3],
+            ),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.next_turn(); // P1 plays Maiden 1 -> bond of one, strength 4
+        assert_cards(&game, Player::P1, Range::MELEE, &[(DRUMMOND_SHIELDMAIDEN_1, 4)]);
+
+        game.next_turn(); // P2 passes
+        game.next_turn(); // P1 plays Cerys -> musters 2 & 3 -> bond of three: 12
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::MELEE,
+            &[
+                (CERYS, 10),
+                (DRUMMOND_SHIELDMAIDEN_1, 12),
+                (DRUMMOND_SHIELDMAIDEN_2, 12),
+                (DRUMMOND_SHIELDMAIDEN_3, 12),
+            ],
+        );
     }
 }
