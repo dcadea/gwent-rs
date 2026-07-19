@@ -58,6 +58,49 @@ impl Board {
         }
     }
 
+    fn put_unit(&mut self, player: Player, unit: Unit) -> Action {
+        if unit.range == Range::AGILE {
+            return Action::Agile(unit);
+        }
+
+        let action = match &unit.ability {
+            card::Ability::Medic => Action::Medic,
+            card::Ability::Muster(ids) => Action::Muster(ids.clone()),
+            card::Ability::Scorch(range) => Action::Scorch(*range),
+            card::Ability::Spy => Action::Spy,
+            card::Ability::Mardrome
+            | card::Ability::CommandersHorn
+            | card::Ability::MoraleBoost
+            | card::Ability::TightBond(_)
+            | card::Ability::Summon(_)
+            | card::Ability::Berserker(_)
+            | card::Ability::None => Action::None,
+        };
+
+        if matches!(action, Action::Spy) {
+            self.get_opponent_player_mut(player)
+        } else {
+            self.get_current_player_mut(player)
+        }
+        .put_unit(unit);
+
+        action
+    }
+
+    fn put_special(&mut self, special: Special) -> Action {
+        match special {
+            card::Special::CommandersHorn => Action::CommandersHorn,
+            card::Special::Decoy => Action::Decoy,
+            card::Special::Mardrome => Action::Mardrome,
+            card::Special::Scorch => Action::Scorch(Range::ALL),
+            card::Special::Weather(weather) => {
+                self.player1.put_weather(weather);
+                self.player2.put_weather(weather);
+                Action::None
+            }
+        }
+    }
+
     pub fn put_agile_unit(&mut self, player: Player, unit: Unit, range: Range) {
         assert!(range == Range::MELEE || range == Range::RANGED);
 
@@ -119,9 +162,25 @@ impl Board {
     pub fn remove_unit(&mut self, player: Player, range: Range, i: usize) -> Unit {
         self.get_current_player_mut(player).remove_unit(range, i)
     }
-}
 
-impl Board {
+    pub fn clear(&mut self) -> Vec<(Player, Unit)> {
+        let mut cleared: Vec<(Player, Unit)> = self
+            .player1
+            .clear()
+            .into_iter()
+            .map(|unit| (Player::P1, unit))
+            .collect();
+
+        cleared.extend(
+            self.player2
+                .clear()
+                .into_iter()
+                .map(|unit| (Player::P2, unit)),
+        );
+
+        cleared
+    }
+
     const fn get_current_player_mut(&mut self, player: Player) -> &mut Side {
         match player {
             Player::P1 => &mut self.player1,
@@ -136,47 +195,19 @@ impl Board {
         }
     }
 
-    fn put_unit(&mut self, player: Player, unit: Unit) -> Action {
-        if unit.range == Range::AGILE {
-            return Action::Agile(unit);
-        }
+    pub fn get_total_strength(&self, player: Player) -> u16 {
+        let strengths = self.get_strengths();
 
-        let action = match &unit.ability {
-            card::Ability::Medic => Action::Medic,
-            card::Ability::Muster(ids) => Action::Muster(ids.clone()),
-            card::Ability::Scorch(range) => Action::Scorch(*range),
-            card::Ability::Spy => Action::Spy,
-            card::Ability::Mardrome
-            | card::Ability::CommandersHorn
-            | card::Ability::MoraleBoost
-            | card::Ability::TightBond(_)
-            | card::Ability::Summon(_)
-            | card::Ability::Berserker(_)
-            | card::Ability::None => Action::None,
+        let s = match player {
+            Player::P1 => &strengths.p1,
+            Player::P2 => &strengths.p2,
         };
 
-        if matches!(action, Action::Spy) {
-            self.get_opponent_player_mut(player)
-        } else {
-            self.get_current_player_mut(player)
-        }
-        .put_unit(unit);
-
-        action
-    }
-
-    fn put_special(&mut self, special: Special) -> Action {
-        match special {
-            card::Special::CommandersHorn => Action::CommandersHorn,
-            card::Special::Decoy => Action::Decoy,
-            card::Special::Mardrome => Action::Mardrome,
-            card::Special::Scorch => Action::Scorch(Range::ALL),
-            card::Special::Weather(weather) => {
-                self.player1.put_weather(weather);
-                self.player2.put_weather(weather);
-                Action::None
-            }
-        }
+        [s.melee, s.ranged, s.siege]
+            .into_iter()
+            .flatten()
+            .map(|s| u16::from(s.get()))
+            .sum()
     }
 }
 

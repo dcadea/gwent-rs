@@ -93,6 +93,13 @@ impl Side {
     pub fn remove_unit(&mut self, range: Range, i: usize) -> Unit {
         self.get_row_mut(range).remove_unit(i)
     }
+
+    pub fn clear(&mut self) -> Vec<Unit> {
+        let mut removed = self.melee.clear();
+        removed.append(&mut self.ranged.clear());
+        removed.append(&mut self.siege.clear());
+        removed
+    }
 }
 
 impl Side {
@@ -144,7 +151,10 @@ impl Strengths<'_> {
 mod test {
     use std::panic::AssertUnwindSafe;
 
-use crate::{card::Range, side::{Side, Strengths}};
+    use crate::{
+        card::Range,
+        side::{Side, Strengths},
+    };
 
     #[test]
     fn should_panic_on_get_agile_row() {
@@ -170,11 +180,13 @@ use crate::{card::Range, side::{Side, Strengths}};
 
     #[test]
     fn should_panic_on_get_strengths_when_agile() {
-        let s = Strengths { melee: &[], ranged: &[], siege: &[] };
+        let s = Strengths {
+            melee: &[],
+            ranged: &[],
+            siege: &[],
+        };
 
-        let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
-            s.get(Range::AGILE)
-        }));
+        let result = std::panic::catch_unwind(AssertUnwindSafe(|| s.get(Range::AGILE)));
 
         assert!(result.is_err());
     }

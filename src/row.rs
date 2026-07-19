@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::card::{
-    Ability::{Berserker, CommandersHorn, Mardrome, MoraleBoost, TightBond},
+    Ability::{Berserker, CommandersHorn, Mardrome, MoraleBoost, Summon, TightBond},
     Group, Range, Special, Strength, Unit,
     Weather::{self, ClearWeather},
 };
@@ -83,6 +83,10 @@ impl Row {
             }
         }
 
+        for unit in &discarded {
+            self.spawn_summon(unit);
+        }
+
         if !discarded.is_empty() {
             self.is_dirty = true;
         }
@@ -93,8 +97,33 @@ impl Row {
     pub fn remove_unit(&mut self, i: usize) -> Unit {
         self.strengths.swap_remove(i);
         let unit = self.units.swap_remove(i);
+        self.spawn_summon(&unit);
         self.is_dirty = true;
         unit
+    }
+
+    pub fn clear(&mut self) -> Vec<Unit> {
+        let removed = std::mem::take(&mut self.units);
+        self.strengths.clear();
+        self.bad_weather = false;
+        self.boost = None;
+
+        for unit in &removed {
+            self.spawn_summon(unit);
+        }
+
+        self.is_dirty = true;
+
+        removed
+    }
+
+    fn spawn_summon(&mut self, removed: &Unit) {
+        if let Summon(target) = &removed.ability {
+            let summoned = *target.clone();
+            self.strengths.push(summoned.strength);
+            self.units.push(summoned);
+            self.is_dirty = true;
+        }
     }
 }
 

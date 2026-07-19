@@ -43,6 +43,11 @@ impl Turn {
     const fn both_passed(&self) -> bool {
         self.p1_passed && self.p2_passed
     }
+
+    const fn reset(&mut self) {
+        self.p1_passed = false;
+        self.p2_passed = false;
+    }
 }
 
 pub enum Action {
@@ -87,6 +92,8 @@ pub struct Game<C: Controller> {
     board: Board,
     actions: Vec<Action>,
 
+    gems: [u8; 2],
+
     p1: Cards,
     p2: Cards,
 }
@@ -102,21 +109,43 @@ impl<C: Controller> Game<C> {
             turn,
             board: Board::default(),
             actions: Vec::default(),
+            gems: [2, 2],
             p1,
             p2,
         }
     }
 
     pub fn start(&mut self) {
+        loop {
+            self.play_round();
+
+            if self.summarize_round() {
+                // somebody lost
+                break;
+            }
+
+            self.end_round();
+        }
+    }
+}
+
+impl<C: Controller> Game<C> {
+    pub fn play_round(&mut self) {
         while !self.turn.both_passed() {
             // TODO: display
             let _ = self.board.get_strengths();
             self.next_turn();
         }
     }
-}
 
-impl<C: Controller> Game<C> {
+    pub fn end_round(&mut self) {
+        for (owner, unit) in self.board.clear() {
+            self.get_player_cards_mut(owner).discard(unit);
+        }
+
+        self.turn.reset();
+    }
+
     fn next_turn(&mut self) {
         let action = self.pick_action();
         self.actions.push(action);
@@ -210,6 +239,24 @@ impl<C: Controller> Game<C> {
         self.get_current_player_cards_mut().pick_from_deck(num);
     }
 
+    fn summarize_round(&mut self) -> bool {
+        let (p1, p2) = (
+            self.board.get_total_strength(Player::P1),
+            self.board.get_total_strength(Player::P2),
+        );
+
+        if p1 <= p2 {
+            let gems = self.gems_mut(Player::P1);
+            *gems = gems.saturating_sub(1);
+        }
+        if p2 <= p1 {
+            let gems = self.gems_mut(Player::P2);
+            *gems = gems.saturating_sub(1);
+        }
+
+        self.gems.contains(&0)
+    }
+
     const fn get_current_player_cards(&self) -> &Cards {
         match self.turn.current {
             Player::P1 => &self.p1,
@@ -228,6 +275,13 @@ impl<C: Controller> Game<C> {
         match self.turn.current {
             Player::P1 => &mut self.p1,
             Player::P2 => &mut self.p2,
+        }
+    }
+
+    const fn gems_mut(&mut self, player: Player) -> &mut u8 {
+        match player {
+            Player::P1 => &mut self.gems[0],
+            Player::P2 => &mut self.gems[1],
         }
     }
 }
@@ -254,15 +308,14 @@ mod test {
         board::Player,
         card::Range,
         constants::{
-            ARACHAS_1, ARACHAS_2, ARACHAS_3, BITING_FROST, BLUE_STRIPES_1, BLUE_STRIPES_2,
-            BOTCHLING, CATAPULT_1, CATAPULT_2, CERYS, CLAN_DIMUN_PIRATE, CLEAR_WEATHER,
-            COMMANDERS_HORN, DRUMMOND_SHIELDMAIDEN_1, DRUMMOND_SHIELDMAIDEN_2,
-            DRUMMOND_SHIELDMAIDEN_3,
-            BIRNA_BRAN, DANDELION, DECOY, DRAGON_HUNTER_1, DRAGON_HUNTER_2, DUN_BANNER_MEDIC,
-            ETOLIAN_ARCHERS_1, ETOLIAN_ARCHERS_2, FIEND, FORKTAIL, ISENGRIM, KEIRA_METZ, NEKKER_1,
-            NEKKER_2, NEKKER_3, PRINCE_STENNIS, ZOLTAN,
-            OLGIERD, REDANIAN_SOLDIER_1, SCORCH, SIEGE_EXPERT_1, SKELLIGE_STORM, SVANRIGE,
-            TORRENTIAL_RAIN, TRISS, VESEMIR, VILLENTRETENMERTH, YENNEFER,
+            ARACHAS_1, ARACHAS_2, ARACHAS_3, BIRNA_BRAN, BITING_FROST, BLUE_STRIPES_1,
+            BLUE_STRIPES_2, BOTCHLING, CATAPULT_1, CATAPULT_2, CERYS, CLAN_DIMUN_PIRATE,
+            CLEAR_WEATHER, COMMANDERS_HORN, DANDELION, DECOY, DRAGON_HUNTER_1, DRAGON_HUNTER_2,
+            DRUMMOND_SHIELDMAIDEN_1, DRUMMOND_SHIELDMAIDEN_2, DRUMMOND_SHIELDMAIDEN_3,
+            DUN_BANNER_MEDIC, ETOLIAN_ARCHERS_1, ETOLIAN_ARCHERS_2, FIEND, FORKTAIL, HEMDALL,
+            ISENGRIM, KAMBI, KEIRA_METZ, NEKKER_1, NEKKER_2, NEKKER_3, OLGIERD, PRINCE_STENNIS,
+            REDANIAN_SOLDIER_1, SCORCH, SIEGE_EXPERT_1, SKELLIGE_STORM, SVANRIGE, TORRENTIAL_RAIN,
+            TRISS, VESEMIR, VILLENTRETENMERTH, YENNEFER, ZOLTAN,
         },
         deck::Cards,
         game::{Controller, Game, Turn},
@@ -405,7 +458,19 @@ mod test {
         assert_eq!(actual, expected);
     }
 
-    // --- Turn state machine ---
+    /// Asserts a player's discard pile holds exactly the given card ids (order
+    /// independent).
+    fn assert_pile(cards: &Cards, expected: &[u16]) {
+        let mut actual = cards.pile_ids();
+        actual.sort_unstable();
+
+        let mut expected = expected.to_vec();
+        expected.sort_unstable();
+
+        assert_eq!(actual, expected);
+    }
+
+    // --- Turn cursor + pass flags ---
 
     #[test]
     fn new_turn_starts_with_given_player_and_no_passes() {
@@ -511,7 +576,7 @@ mod test {
             Cards::northern_realms(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert!(game.turn.both_passed());
     }
@@ -524,7 +589,7 @@ mod test {
             Cards::northern_realms(&[REDANIAN_SOLDIER_1], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert!(game.turn.both_passed());
     }
@@ -540,7 +605,7 @@ mod test {
             Cards::northern_realms(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         // All three Nekkers end up on P1's melee row.
         assert_cards(
@@ -562,7 +627,7 @@ mod test {
             Cards::northern_realms(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert_cards(
             &game,
@@ -581,7 +646,7 @@ mod test {
             Cards::northern_realms(&[SCORCH], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         // Botchling was the strongest unit, so global scorch clears it.
         assert_cards(&game, Player::P1, Range::MELEE, &[]);
@@ -598,7 +663,7 @@ mod test {
             Cards::skellige(&[CLAN_DIMUN_PIRATE], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert_cards(&game, Player::P1, Range::MELEE, &[]);
         assert_cards(&game, Player::P2, Range::RANGED, &[]);
@@ -619,7 +684,7 @@ mod test {
             Cards::skellige(&[SVANRIGE, CLAN_DIMUN_PIRATE], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         // The Fiend and the pirate both went to strength 6 and were scorched...
         assert_cards(&game, Player::P1, Range::MELEE, &[]);
@@ -639,7 +704,7 @@ mod test {
             Cards::monsters(&[ARACHAS_1], &[ARACHAS_2, ARACHAS_3]),
         );
 
-        game.start();
+        game.play_round();
 
         // P2's whole melee row (all the Arachas) is scorched away...
         assert_cards(&game, Player::P2, Range::MELEE, &[]);
@@ -664,7 +729,7 @@ mod test {
             Cards::monsters(&[ARACHAS_1], &[ARACHAS_2, ARACHAS_3]),
         );
 
-        game.start();
+        game.play_round();
 
         // Frost kept the Arachas under the threshold, so none are scorched —
         // they survive, each sapped to strength 1 by the weather.
@@ -689,10 +754,15 @@ mod test {
             Cards::monsters(&[FORKTAIL, BOTCHLING], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         // Under threshold: both units stay put.
-        assert_cards(&game, Player::P2, Range::MELEE, &[(FORKTAIL, 5), (BOTCHLING, 4)]);
+        assert_cards(
+            &game,
+            Player::P2,
+            Range::MELEE,
+            &[(FORKTAIL, 5), (BOTCHLING, 4)],
+        );
     }
 
     #[test]
@@ -707,7 +777,7 @@ mod test {
             Cards::monsters(&[TRISS, FORKTAIL], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         // Only Triss remains — Forktail was scorched, the hero was not.
         assert_cards(&game, Player::P2, Range::MELEE, &[(TRISS, 7)]);
@@ -733,7 +803,7 @@ mod test {
             Cards::northern_realms(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         // Exactly one Nekker is back (the medic's), proving Muster did not drag
         // the other two out of the pile.
@@ -786,7 +856,7 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         // Order is weather -> tight bond -> morale boost:
         //   weather: every unit -> 1
@@ -820,7 +890,7 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert_cards(
             &game,
@@ -897,7 +967,12 @@ mod test {
         assert_cards(&game, Player::P1, Range::MELEE, &[(TRISS, 7), (VESEMIR, 6)]);
 
         game.next_turn(); // Commander's Horn (special)
-        assert_cards(&game, Player::P1, Range::MELEE, &[(TRISS, 7), (VESEMIR, 12)]);
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::MELEE,
+            &[(TRISS, 7), (VESEMIR, 12)],
+        );
     }
 
     #[test]
@@ -909,7 +984,7 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert_cards(
             &game,
@@ -929,7 +1004,7 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert_cards(
             &game,
@@ -948,7 +1023,7 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert_cards(
             &game,
@@ -976,7 +1051,7 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert_cards(
             &game,
@@ -1005,7 +1080,7 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert_cards(
             &game,
@@ -1039,7 +1114,7 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert_cards(
             &game,
@@ -1073,7 +1148,7 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert_cards(
             &game,
@@ -1109,7 +1184,7 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert_cards(
             &game,
@@ -1145,7 +1220,7 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert_cards(
             &game,
@@ -1181,7 +1256,7 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert_cards(
             &game,
@@ -1256,7 +1331,12 @@ mod test {
             &game,
             Player::P1,
             Range::MELEE,
-            &[(TRISS, 7), (BLUE_STRIPES_1, 9), (BLUE_STRIPES_2, 9), (OLGIERD, 6)],
+            &[
+                (TRISS, 7),
+                (BLUE_STRIPES_1, 9),
+                (BLUE_STRIPES_2, 9),
+                (OLGIERD, 6),
+            ],
         );
 
         game.next_turn(); // Commander's Horn -> doubles every regular unit
@@ -1299,7 +1379,7 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         // Vesemir left the board and is back in hand; Decoy itself is consumed.
         assert_cards(&game, Player::P1, Range::MELEE, &[]);
@@ -1317,7 +1397,7 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         // Horn gone: Vesemir back to base strength, Dandelion back in hand.
         assert_cards(&game, Player::P1, Range::MELEE, &[(VESEMIR, 6)]);
@@ -1335,7 +1415,7 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert_cards(&game, Player::P1, Range::MELEE, &[(VESEMIR, 6)]);
         assert_hand(&game.p1, &[OLGIERD]);
@@ -1352,7 +1432,7 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert_cards(&game, Player::P1, Range::MELEE, &[(BLUE_STRIPES_1, 4)]);
         assert_hand(&game.p1, &[BLUE_STRIPES_2]);
@@ -1369,7 +1449,7 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert_cards(&game, Player::P1, Range::RANGED, &[(KEIRA_METZ, 5)]);
     }
@@ -1385,7 +1465,7 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert_cards(&game, Player::P1, Range::RANGED, &[(KEIRA_METZ, 5)]);
     }
@@ -1409,7 +1489,7 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert_cards(
             &game,
@@ -1458,7 +1538,7 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         // The spy sits on the opponent's melee row...
         assert_cards(&game, Player::P2, Range::MELEE, &[(PRINCE_STENNIS, 5)]);
@@ -1480,7 +1560,7 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert_cards(
             &game,
@@ -1498,13 +1578,18 @@ mod test {
         let mut game = Game::new(
             ScriptedController::new(false, &[0, 1, 1, 0]),
             Cards::mixed(
-                &[ETOLIAN_ARCHERS_1, ETOLIAN_ARCHERS_2, SCORCH, DUN_BANNER_MEDIC],
+                &[
+                    ETOLIAN_ARCHERS_1,
+                    ETOLIAN_ARCHERS_2,
+                    SCORCH,
+                    DUN_BANNER_MEDIC,
+                ],
                 &[],
             ),
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert_cards(
             &game,
@@ -1639,7 +1724,12 @@ mod test {
         assert_cards(&game, Player::P1, Range::MELEE, &[(VESEMIR, 6)]);
 
         game.next_turn(); // medic restores Olgierd -> morale lifts Vesemir to 7
-        assert_cards(&game, Player::P1, Range::MELEE, &[(VESEMIR, 7), (OLGIERD, 6)]);
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::MELEE,
+            &[(VESEMIR, 7), (OLGIERD, 6)],
+        );
         assert_cards(&game, Player::P1, Range::SIEGE, &[(DUN_BANNER_MEDIC, 5)]);
     }
 
@@ -1729,7 +1819,7 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert_cards(
             &game,
@@ -1756,7 +1846,7 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert_cards(
             &game,
@@ -1787,7 +1877,7 @@ mod test {
             Cards::monsters(&[], &[]),
         );
 
-        game.start();
+        game.play_round();
 
         assert_cards(
             &game,
@@ -1824,7 +1914,12 @@ mod test {
 
         game.next_turn(); // P2 passes
         game.next_turn(); // Maiden 1 alone -> bond of one, strength 4
-        assert_cards(&game, Player::P1, Range::MELEE, &[(DRUMMOND_SHIELDMAIDEN_1, 4)]);
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::MELEE,
+            &[(DRUMMOND_SHIELDMAIDEN_1, 4)],
+        );
 
         game.next_turn(); // Scorch -> Maiden 1 to the pile
         assert_cards(&game, Player::P1, Range::MELEE, &[]);
@@ -1938,7 +2033,12 @@ mod test {
         );
 
         game.next_turn(); // P1 plays Maiden 1 -> bond of one, strength 4
-        assert_cards(&game, Player::P1, Range::MELEE, &[(DRUMMOND_SHIELDMAIDEN_1, 4)]);
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::MELEE,
+            &[(DRUMMOND_SHIELDMAIDEN_1, 4)],
+        );
 
         game.next_turn(); // P2 passes
         game.next_turn(); // P1 plays Cerys -> musters 2 & 3 -> bond of three: 12
@@ -1953,5 +2053,88 @@ mod test {
                 (DRUMMOND_SHIELDMAIDEN_3, 12),
             ],
         );
+    }
+
+    // --- Summon: leaving the board summons the carried unit (round end,
+    // scorch, decoy) ---
+
+    #[test]
+    fn a_summon_fires_when_the_round_ends() {
+        let mut game = Game::new(
+            TestController::new(true, 1),
+            Cards::skellige(&[KAMBI], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.play_round(); // round 1: P1 plays Kambi -> still a strength-0 summon
+        assert_cards(&game, Player::P1, Range::MELEE, &[(KAMBI, 0)]);
+
+        game.end_round(); // Kambi leaves for the pile, Hemdall (11) is summoned
+        assert_cards(&game, Player::P1, Range::MELEE, &[(HEMDALL, 11)]);
+        assert_pile(&game.p1, &[KAMBI]);
+    }
+
+    #[test]
+    fn a_summon_fires_when_scorched() {
+        // Kambi (strength 0) is the whole board, so global Scorch removes it —
+        // sending Kambi to the pile and summoning Hemdall in its place.
+        let mut game = Game::new(
+            TestController::new(true, 2),
+            Cards::skellige(&[KAMBI, SCORCH], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.play_round();
+
+        assert_cards(&game, Player::P1, Range::MELEE, &[(HEMDALL, 11)]);
+        assert_pile(&game.p1, &[KAMBI]);
+    }
+
+    #[test]
+    fn a_summon_fires_when_decoyed() {
+        // Decoy pulls Kambi back to hand; leaving the board still summons
+        // Hemdall.
+        let mut game = Game::new(
+            TestController::new(true, 2),
+            Cards::skellige(&[KAMBI, DECOY], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.play_round();
+
+        assert_cards(&game, Player::P1, Range::MELEE, &[(HEMDALL, 11)]);
+        assert_hand(&game.p1, &[KAMBI]);
+    }
+
+    #[test]
+    fn ending_a_round_clears_units_to_their_owners_pile() {
+        let mut game = Game::new(
+            TestController::new(true, 1),
+            Cards::monsters(&[BOTCHLING], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.play_round();
+        assert_cards(&game, Player::P1, Range::MELEE, &[(BOTCHLING, 4)]);
+
+        game.end_round();
+        // Board is empty and Botchling now sits in P1's discard pile.
+        assert_cards(&game, Player::P1, Range::MELEE, &[]);
+        assert_pile(&game.p1, &[BOTCHLING]);
+    }
+
+    #[test]
+    fn a_game_ends_when_a_player_runs_out_of_gems() {
+        // P1 wins round 1 (Botchling vs empty), costing P2 a gem. Round 2 both
+        // boards are empty, so the tie costs both a gem and knocks P2 out.
+        let mut game = Game::new(
+            TestController::new(true, 1),
+            Cards::monsters(&[BOTCHLING], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.start();
+
+        assert_eq!(game.gems, [1, 0]); // P2 is out, P1 survives with a gem
     }
 }
