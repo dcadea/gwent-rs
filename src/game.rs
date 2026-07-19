@@ -256,8 +256,9 @@ mod test {
         constants::{
             ARACHAS_1, ARACHAS_2, ARACHAS_3, BITING_FROST, BLUE_STRIPES_1, BLUE_STRIPES_2,
             BOTCHLING, CATAPULT_1, CATAPULT_2, CLAN_DIMUN_PIRATE, CLEAR_WEATHER, COMMANDERS_HORN,
-            DANDELION, DECOY, DRAGON_HUNTER_1, DRAGON_HUNTER_2, FIEND, FORKTAIL, ISENGRIM,
-            KEIRA_METZ, NEKKER_1, NEKKER_2, NEKKER_3,
+            BIRNA_BRAN, DANDELION, DECOY, DRAGON_HUNTER_1, DRAGON_HUNTER_2, DUN_BANNER_MEDIC,
+            ETOLIAN_ARCHERS_1, ETOLIAN_ARCHERS_2, FIEND, FORKTAIL, ISENGRIM, KEIRA_METZ, NEKKER_1,
+            NEKKER_2, NEKKER_3, PRINCE_STENNIS, ZOLTAN,
             OLGIERD, REDANIAN_SOLDIER_1, SCORCH, SIEGE_EXPERT_1, SKELLIGE_STORM, SVANRIGE,
             TORRENTIAL_RAIN, TRISS, VESEMIR, VILLENTRETENMERTH, YENNEFER,
         },
@@ -357,18 +358,6 @@ mod test {
         }
     }
 
-    /// Asserts that a player's row holds exactly the given card ids (order
-    /// independent).
-    fn assert_row<C: Controller>(game: &Game<C>, player: Player, range: Range, expected: &[u16]) {
-        let mut actual = game.board.get_ids(player, range);
-        actual.sort_unstable();
-
-        let mut expected = expected.to_vec();
-        expected.sort_unstable();
-
-        assert_eq!(actual, expected);
-    }
-
     /// Returns a player's row as sorted `(card id, strength)` pairs, so both the
     /// units present and their computed strengths can be asserted together.
     fn row_cards<C: Controller>(game: &Game<C>, player: Player, range: Range) -> Vec<(u16, u8)> {
@@ -400,6 +389,18 @@ mod test {
         expected.sort_unstable();
 
         assert_eq!(row_cards(game, player, range), expected);
+    }
+
+    /// Asserts a player's hand holds exactly the given card ids (order
+    /// independent).
+    fn assert_hand(cards: &Cards, expected: &[u16]) {
+        let mut actual = cards.hand_ids();
+        actual.sort_unstable();
+
+        let mut expected = expected.to_vec();
+        expected.sort_unstable();
+
+        assert_eq!(actual, expected);
     }
 
     // --- Turn state machine ---
@@ -540,11 +541,11 @@ mod test {
         game.start();
 
         // All three Nekkers end up on P1's melee row.
-        assert_row(
+        assert_cards(
             &game,
             Player::P1,
             Range::MELEE,
-            &[NEKKER_1, NEKKER_2, NEKKER_3],
+            &[(NEKKER_1, 2), (NEKKER_2, 2), (NEKKER_3, 2)],
         );
     }
 
@@ -561,11 +562,11 @@ mod test {
 
         game.start();
 
-        assert_row(
+        assert_cards(
             &game,
             Player::P1,
             Range::MELEE,
-            &[NEKKER_1, NEKKER_2, NEKKER_3],
+            &[(NEKKER_1, 2), (NEKKER_2, 2), (NEKKER_3, 2)],
         );
     }
 
@@ -581,8 +582,8 @@ mod test {
         game.start();
 
         // Botchling was the strongest unit, so global scorch clears it.
-        assert_row(&game, Player::P1, Range::MELEE, &[]);
-        assert_row(&game, Player::P2, Range::MELEE, &[]);
+        assert_cards(&game, Player::P1, Range::MELEE, &[]);
+        assert_cards(&game, Player::P2, Range::MELEE, &[]);
     }
 
     #[test]
@@ -597,8 +598,8 @@ mod test {
 
         game.start();
 
-        assert_row(&game, Player::P1, Range::MELEE, &[]);
-        assert_row(&game, Player::P2, Range::RANGED, &[]);
+        assert_cards(&game, Player::P1, Range::MELEE, &[]);
+        assert_cards(&game, Player::P2, Range::RANGED, &[]);
     }
 
     #[test]
@@ -619,10 +620,10 @@ mod test {
         game.start();
 
         // The Fiend and the pirate both went to strength 6 and were scorched...
-        assert_row(&game, Player::P1, Range::MELEE, &[]);
-        assert_row(&game, Player::P2, Range::RANGED, &[]);
+        assert_cards(&game, Player::P1, Range::MELEE, &[]);
+        assert_cards(&game, Player::P2, Range::RANGED, &[]);
         // ...but the weaker Svanrige (4) is untouched.
-        assert_row(&game, Player::P2, Range::MELEE, &[SVANRIGE]);
+        assert_cards(&game, Player::P2, Range::MELEE, &[(SVANRIGE, 4)]);
     }
 
     #[test]
@@ -639,9 +640,9 @@ mod test {
         game.start();
 
         // P2's whole melee row (all the Arachas) is scorched away...
-        assert_row(&game, Player::P2, Range::MELEE, &[]);
+        assert_cards(&game, Player::P2, Range::MELEE, &[]);
         // ...while Villentretenmerth survives on P1's own melee row.
-        assert_row(&game, Player::P1, Range::MELEE, &[VILLENTRETENMERTH]);
+        assert_cards(&game, Player::P1, Range::MELEE, &[(VILLENTRETENMERTH, 7)]);
     }
 
     #[test]
@@ -689,7 +690,7 @@ mod test {
         game.start();
 
         // Under threshold: both units stay put.
-        assert_row(&game, Player::P2, Range::MELEE, &[FORKTAIL, BOTCHLING]);
+        assert_cards(&game, Player::P2, Range::MELEE, &[(FORKTAIL, 5), (BOTCHLING, 4)]);
     }
 
     #[test]
@@ -707,7 +708,7 @@ mod test {
         game.start();
 
         // Only Triss remains — Forktail was scorched, the hero was not.
-        assert_row(&game, Player::P2, Range::MELEE, &[TRISS]);
+        assert_cards(&game, Player::P2, Range::MELEE, &[(TRISS, 7)]);
     }
 
     #[test]
@@ -736,7 +737,7 @@ mod test {
         // the other two out of the pile.
         assert_eq!(game.board.get_ids(Player::P1, Range::MELEE).len(), 1);
         // Yennefer herself stands on the ranged row.
-        assert_row(&game, Player::P1, Range::RANGED, &[YENNEFER]);
+        assert_cards(&game, Player::P1, Range::RANGED, &[(YENNEFER, 7)]);
     }
 
     #[test]
@@ -1299,8 +1300,8 @@ mod test {
         game.start();
 
         // Vesemir left the board and is back in hand; Decoy itself is consumed.
-        assert_row(&game, Player::P1, Range::MELEE, &[]);
-        assert_eq!(game.p1.hand_ids(), vec![VESEMIR]);
+        assert_cards(&game, Player::P1, Range::MELEE, &[]);
+        assert_hand(&game.p1, &[VESEMIR]);
     }
 
     #[test]
@@ -1318,7 +1319,7 @@ mod test {
 
         // Horn gone: Vesemir back to base strength, Dandelion back in hand.
         assert_cards(&game, Player::P1, Range::MELEE, &[(VESEMIR, 6)]);
-        assert_eq!(game.p1.hand_ids(), vec![DANDELION]);
+        assert_hand(&game.p1, &[DANDELION]);
     }
 
     #[test]
@@ -1335,7 +1336,7 @@ mod test {
         game.start();
 
         assert_cards(&game, Player::P1, Range::MELEE, &[(VESEMIR, 6)]);
-        assert_eq!(game.p1.hand_ids(), vec![OLGIERD]);
+        assert_hand(&game.p1, &[OLGIERD]);
     }
 
     #[test]
@@ -1352,7 +1353,7 @@ mod test {
         game.start();
 
         assert_cards(&game, Player::P1, Range::MELEE, &[(BLUE_STRIPES_1, 4)]);
-        assert_eq!(game.p1.hand_ids(), vec![BLUE_STRIPES_2]);
+        assert_hand(&game.p1, &[BLUE_STRIPES_2]);
     }
 
     // --- Clear Weather on the ranged row ---
@@ -1441,5 +1442,268 @@ mod test {
 
         game.next_turn(); // P1 plays a second Biting Frost -> already frosted, no change
         assert_cards(&game, Player::P1, Range::MELEE, &[(VESEMIR, 1)]);
+    }
+
+    // --- Spy: lands on the opponent, draws two for the caster ---
+
+    #[test]
+    fn spy_lands_on_the_opponent_and_draws_two_cards() {
+        // P1 plays Prince Stennis (spy). The unit is placed on P2's side and P1
+        // draws the two cards waiting in its deck.
+        let mut game = Game::new(
+            TestController::new(true, 1),
+            Cards::northern_realms(&[PRINCE_STENNIS], &[VESEMIR, ZOLTAN]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.start();
+
+        // The spy sits on the opponent's melee row...
+        assert_cards(&game, Player::P2, Range::MELEE, &[(PRINCE_STENNIS, 5)]);
+        // ...and P1 drew both deck cards into hand.
+        assert_hand(&game.p1, &[VESEMIR, ZOLTAN]);
+    }
+
+    // --- Medic: restore a unit from the pile and chain its ability ---
+
+    #[test]
+    fn medic_restores_a_unit_from_the_pile() {
+        // P1 plays Botchling, scorches it into the pile, then plays Birna Bran
+        // (medic), which brings Botchling back to the board.
+        // Botchling (monsters) + Birna Bran (skellige) are cross-faction, so
+        // this hand needs `mixed`, which also preserves the input play order.
+        let mut game = Game::new(
+            ScriptedController::new(false, &[0, 1, 0]),
+            Cards::mixed(&[BOTCHLING, SCORCH, BIRNA_BRAN], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.start();
+
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::MELEE,
+            &[(BIRNA_BRAN, 2), (BOTCHLING, 4)],
+        );
+    }
+
+    #[test]
+    fn medic_chains_when_it_restores_another_medic() {
+        // Two Etolian Archers (medics) are scorched into the pile. Dun Banner
+        // Medic restores the first, whose own medic restores the second — so
+        // both come back off a single medic play.
+        let mut game = Game::new(
+            ScriptedController::new(false, &[0, 1, 1, 0]),
+            Cards::mixed(
+                &[ETOLIAN_ARCHERS_1, ETOLIAN_ARCHERS_2, SCORCH, DUN_BANNER_MEDIC],
+                &[],
+            ),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.start();
+
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::RANGED,
+            &[(ETOLIAN_ARCHERS_1, 1), (ETOLIAN_ARCHERS_2, 1)],
+        );
+        assert_cards(&game, Player::P1, Range::SIEGE, &[(DUN_BANNER_MEDIC, 5)]);
+    }
+
+    #[test]
+    fn medic_restores_a_tight_bond_partner_and_completes_the_bond() {
+        // Blue Stripes 2 is scorched into the pile; Blue Stripes 1 is then
+        // played alone (bond of one, strength 4). Dun Banner Medic restores
+        // Blue Stripes 2, forming the bond so both become 4 * 2 = 8.
+        // `northern_realms` lays the hand out as [faction…, special], i.e.
+        // [Blue 2, Blue 1, Dun, Scorch]; the script plays Blue 2, Scorch,
+        // Blue 1, Dun.
+        let mut game = Game::new(
+            ScriptedController::new(false, &[0, 0, 1, 0]),
+            Cards::northern_realms(
+                &[BLUE_STRIPES_2, SCORCH, BLUE_STRIPES_1, DUN_BANNER_MEDIC],
+                &[],
+            ),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.next_turn(); // P2 passes
+        game.next_turn(); // Blue Stripes 2 alone -> bond of one, strength 4
+        assert_cards(&game, Player::P1, Range::MELEE, &[(BLUE_STRIPES_2, 4)]);
+
+        game.next_turn(); // Scorch -> Blue Stripes 2 (4) to pile
+        assert_cards(&game, Player::P1, Range::MELEE, &[]);
+
+        game.next_turn(); // Blue Stripes 1 alone -> bond of one, strength 4
+        assert_cards(&game, Player::P1, Range::MELEE, &[(BLUE_STRIPES_1, 4)]);
+
+        game.next_turn(); // medic restores Blue Stripes 2 -> bond of two: 4*2 = 8
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::MELEE,
+            &[(BLUE_STRIPES_1, 8), (BLUE_STRIPES_2, 8)],
+        );
+        assert_cards(&game, Player::P1, Range::SIEGE, &[(DUN_BANNER_MEDIC, 5)]);
+    }
+
+    #[test]
+    fn medic_restores_a_row_scorch_unit_which_fires_again() {
+        // Villentretenmerth (melee scorch) is scorched into P1's pile, then
+        // restored by a medic once P2 has a scorchable row. Call order is P1,
+        // P2, P1, P1 (P2 passes with an empty hand before the medic).
+        // Hand lays out as [Villentretenmerth, Dun, Scorch]; the P1 plays are
+        // Villentretenmerth, Scorch, Dun (all index 0 after each swap_remove),
+        // interleaved with P2's Arachas.
+        let mut game = Game::new(
+            ScriptedController::new(true, &[0, 0, 0, 0]),
+            Cards::northern_realms(&[VILLENTRETENMERTH, SCORCH, DUN_BANNER_MEDIC], &[]),
+            Cards::monsters(&[ARACHAS_1], &[ARACHAS_2, ARACHAS_3]),
+        );
+
+        game.next_turn(); // P1 plays Villentretenmerth (P2 empty -> no scorch yet)
+        assert_cards(&game, Player::P1, Range::MELEE, &[(VILLENTRETENMERTH, 7)]);
+
+        game.next_turn(); // P2 musters three Arachas
+        assert_cards(
+            &game,
+            Player::P2,
+            Range::MELEE,
+            &[(ARACHAS_1, 4), (ARACHAS_2, 4), (ARACHAS_3, 4)],
+        );
+
+        game.next_turn(); // P1 scorches: Villentretenmerth (7) is the max -> pile
+        assert_cards(&game, Player::P1, Range::MELEE, &[]);
+        // Arachas (4) survive that scorch.
+        assert_cards(
+            &game,
+            Player::P2,
+            Range::MELEE,
+            &[(ARACHAS_1, 4), (ARACHAS_2, 4), (ARACHAS_3, 4)],
+        );
+
+        game.next_turn(); // P2 passes (empty hand)
+        game.next_turn(); // P1's medic restores Villentretenmerth -> it rescorches
+        assert_cards(&game, Player::P2, Range::MELEE, &[]); // Arachas row cleared
+        assert_cards(&game, Player::P1, Range::MELEE, &[(VILLENTRETENMERTH, 7)]);
+    }
+
+    #[test]
+    fn medic_restores_a_global_scorch_unit_which_fires_again() {
+        // Clan Dimun Pirate (global scorch) self-scorches into P1's pile on the
+        // first play. P2 then fields a Fiend (6). The medic restores the pirate,
+        // whose global scorch clears the board-wide max (6) — the Fiend and the
+        // pirate both go.
+        let mut game = Game::new(
+            TestController::new(true, 3),
+            Cards::skellige(&[CLAN_DIMUN_PIRATE, BIRNA_BRAN], &[]),
+            Cards::monsters(&[FIEND], &[]),
+        );
+
+        game.next_turn(); // P1 pirate -> global scorch removes itself (max 6)
+        assert_cards(&game, Player::P1, Range::RANGED, &[]);
+
+        game.next_turn(); // P2 plays Fiend
+        assert_cards(&game, Player::P2, Range::MELEE, &[(FIEND, 6)]);
+
+        game.next_turn(); // P1 Birna Bran restores the pirate -> rescorch max 6
+        assert_cards(&game, Player::P2, Range::MELEE, &[]); // Fiend gone
+        assert_cards(&game, Player::P1, Range::RANGED, &[]); // pirate gone again
+        assert_cards(&game, Player::P1, Range::MELEE, &[(BIRNA_BRAN, 2)]); // medic stays
+    }
+
+    #[test]
+    fn medic_restores_a_morale_boost_unit() {
+        // Olgierd (morale) is scorched into the pile, then Vesemir is played
+        // alone. The medic restores Olgierd, whose morale lifts Vesemir 6 -> 7.
+        // Play order: Olgierd, Scorch, Vesemir, Dun Banner Medic.
+        let mut game = Game::new(
+            ScriptedController::new(false, &[0, 0, 1, 0]),
+            Cards::northern_realms(&[OLGIERD, VESEMIR, DUN_BANNER_MEDIC, SCORCH], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.next_turn(); // P2 passes
+        game.next_turn(); // Olgierd (agile -> melee)
+        assert_cards(&game, Player::P1, Range::MELEE, &[(OLGIERD, 6)]);
+
+        game.next_turn(); // Scorch -> Olgierd (6) to pile
+        assert_cards(&game, Player::P1, Range::MELEE, &[]);
+
+        game.next_turn(); // Vesemir alone, no boost yet
+        assert_cards(&game, Player::P1, Range::MELEE, &[(VESEMIR, 6)]);
+
+        game.next_turn(); // medic restores Olgierd -> morale lifts Vesemir to 7
+        assert_cards(&game, Player::P1, Range::MELEE, &[(VESEMIR, 7), (OLGIERD, 6)]);
+        assert_cards(&game, Player::P1, Range::SIEGE, &[(DUN_BANNER_MEDIC, 5)]);
+    }
+
+    #[test]
+    fn medic_restores_a_spy_which_lands_on_the_opponent() {
+        // P2 spies P1 (Prince Stennis lands on P1's melee). P1 scorches it into
+        // its own pile, then the medic restores it — replaying it as a spy sends
+        // it to P2 and draws two for P1. Call order: P2, P1, (P2 pass), P1.
+        let mut game = Game::new(
+            ScriptedController::new(false, &[0, 1, 0]),
+            Cards::northern_realms(&[SCORCH, DUN_BANNER_MEDIC], &[VESEMIR, ZOLTAN]),
+            Cards::northern_realms(&[PRINCE_STENNIS], &[]),
+        );
+
+        game.next_turn(); // P2 spy -> lands on P1's melee
+        assert_cards(&game, Player::P1, Range::MELEE, &[(PRINCE_STENNIS, 5)]);
+
+        game.next_turn(); // P1 scorches the spy into its own pile
+        assert_cards(&game, Player::P1, Range::MELEE, &[]);
+
+        game.next_turn(); // P2 passes (empty hand)
+        game.next_turn(); // P1 medic restores the spy -> back to P2, draw two
+        assert_cards(&game, Player::P2, Range::MELEE, &[(PRINCE_STENNIS, 5)]);
+        assert_cards(&game, Player::P1, Range::SIEGE, &[(DUN_BANNER_MEDIC, 5)]);
+        assert_hand(&game.p1, &[VESEMIR, ZOLTAN]);
+    }
+
+    // --- Spy interacting with weather and scorch ---
+
+    #[test]
+    fn a_spy_on_the_opponent_is_hit_by_weather() {
+        // The spy strengthens the opponent, so weather saps it like any unit.
+        let mut game = Game::new(
+            TestController::new(true, 2),
+            Cards::northern_realms(&[PRINCE_STENNIS, BITING_FROST], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.next_turn(); // P1 spy -> P2 melee at 5
+        assert_cards(&game, Player::P2, Range::MELEE, &[(PRINCE_STENNIS, 5)]);
+
+        game.next_turn(); // P2 passes
+        game.next_turn(); // P1 Biting Frost -> spy drops to 1
+        assert_cards(&game, Player::P2, Range::MELEE, &[(PRINCE_STENNIS, 1)]);
+    }
+
+    #[test]
+    fn scorch_kills_the_spy_when_it_is_the_strongest_unit() {
+        // The spy (5) is stronger than P1's own Redanian (1); global scorch
+        // removes the spy from the opponent's row while the weaker unit stays.
+        // Play order: Prince Stennis, Redanian, Scorch.
+        let mut game = Game::new(
+            ScriptedController::new(true, &[0, 1, 0]),
+            Cards::northern_realms(&[PRINCE_STENNIS, REDANIAN_SOLDIER_1, SCORCH], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.next_turn(); // P1 spy -> P2 melee at 5
+        assert_cards(&game, Player::P2, Range::MELEE, &[(PRINCE_STENNIS, 5)]);
+
+        game.next_turn(); // P2 passes
+        game.next_turn(); // P1 Redanian on its own melee
+        assert_cards(&game, Player::P1, Range::MELEE, &[(REDANIAN_SOLDIER_1, 1)]);
+
+        game.next_turn(); // P1 scorches: spy (5) is the max and dies
+        assert_cards(&game, Player::P2, Range::MELEE, &[]);
+        assert_cards(&game, Player::P1, Range::MELEE, &[(REDANIAN_SOLDIER_1, 1)]);
     }
 }
