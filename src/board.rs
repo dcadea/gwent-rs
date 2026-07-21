@@ -224,4 +224,11 @@ impl Board {
             Player::P2 => self.player2.get_ids(range),
         }
     }
+
+    pub fn get_boost(&self, player: Player, range: Range) -> Option<Special> {
+        match player {
+            Player::P1 => self.player1.get_boost(range),
+            Player::P2 => self.player2.get_boost(range),
+        }
+    }
 }

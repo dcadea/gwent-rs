@@ -256,6 +256,10 @@ impl Row {
     pub fn get_ids(&self) -> Vec<u16> {
         self.units.iter().map(|unit| unit.id).collect()
     }
+
+    pub const fn get_boost(&self) -> Option<Special> {
+        self.boost
+    }
 }
 
 #[cfg(test)]

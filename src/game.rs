@@ -306,16 +306,17 @@ mod test {
 
     use crate::{
         board::Player,
-        card::Range,
+        card::{Range, Special},
         constants::{
-            ARACHAS_1, ARACHAS_2, ARACHAS_3, BIRNA_BRAN, BITING_FROST, BLUE_STRIPES_1,
+            ARACHAS_1, ARACHAS_2, ARACHAS_3, BERSERKER, BIRNA_BRAN, BITING_FROST, BLUE_STRIPES_1,
             BLUE_STRIPES_2, BOTCHLING, CATAPULT_1, CATAPULT_2, CERYS, CLAN_DIMUN_PIRATE,
             CLEAR_WEATHER, COMMANDERS_HORN, DANDELION, DECOY, DRAGON_HUNTER_1, DRAGON_HUNTER_2,
             DRUMMOND_SHIELDMAIDEN_1, DRUMMOND_SHIELDMAIDEN_2, DRUMMOND_SHIELDMAIDEN_3,
-            DUN_BANNER_MEDIC, ETOLIAN_ARCHERS_1, ETOLIAN_ARCHERS_2, FIEND, FORKTAIL, HEMDALL,
-            ISENGRIM, KAMBI, KEIRA_METZ, NEKKER_1, NEKKER_2, NEKKER_3, OLGIERD, PRINCE_STENNIS,
-            REDANIAN_SOLDIER_1, SCORCH, SIEGE_EXPERT_1, SKELLIGE_STORM, SVANRIGE, TORRENTIAL_RAIN,
-            TRISS, VESEMIR, VILLENTRETENMERTH, YENNEFER, ZOLTAN,
+            DUN_BANNER_MEDIC, ERMION, ETOLIAN_ARCHERS_1, ETOLIAN_ARCHERS_2, FIEND, FORKTAIL,
+            HEMDALL, ISENGRIM, KAMBI, KEIRA_METZ, MARDROME, NEKKER_1, NEKKER_2, NEKKER_3, OLGIERD,
+            PRINCE_STENNIS, REDANIAN_SOLDIER_1, SCORCH, SIEGE_EXPERT_1, SKELLIGE_STORM, SVANRIGE,
+            TORRENTIAL_RAIN, TRISS, VESEMIR, VILDKAARL, VILLENTRETENMERTH, YENNEFER,
+            YOUNG_BERSERKER_1, YOUNG_BERSERKER_2, YOUNG_BERSERKER_3, YOUNG_VILDKAARL, ZOLTAN,
         },
         deck::Cards,
         game::{Controller, Game, Turn},
@@ -372,6 +373,8 @@ mod test {
     struct ScriptedController {
         coin: bool,
         hand: RefCell<VecDeque<usize>>,
+        /// Row chosen for agile units and row boosts.
+        range: Range,
         /// Board slot Decoy pulls back to hand.
         decoy_target: Option<(Range, usize)>,
     }
@@ -381,8 +384,14 @@ mod test {
             Self {
                 coin,
                 hand: RefCell::new(hand.iter().copied().collect()),
+                range: Range::MELEE,
                 decoy_target: None,
             }
+        }
+
+        fn with_range(mut self, range: Range) -> Self {
+            self.range = range;
+            self
         }
 
         fn with_decoy_target(mut self, target: (Range, usize)) -> Self {
@@ -401,7 +410,7 @@ mod test {
         }
 
         fn select_range(&self) -> Range {
-            Range::MELEE
+            self.range
         }
 
         fn select_from_pile(&self) -> usize {
@@ -456,6 +465,16 @@ mod test {
         expected.sort_unstable();
 
         assert_eq!(actual, expected);
+    }
+
+    /// Asserts the boost special sitting on a player's row.
+    fn assert_boost<C: Controller>(
+        game: &Game<C>,
+        player: Player,
+        range: Range,
+        expected: Option<Special>,
+    ) {
+        assert_eq!(game.board.get_boost(player, range), expected);
     }
 
     /// Asserts a player's discard pile holds exactly the given card ids (order
@@ -2136,5 +2155,146 @@ mod test {
         game.start();
 
         assert_eq!(game.gems, [1, 0]); // P2 is out, P1 survives with a gem
+    }
+
+    // --- Berserker: transforms into its beast when a Mardroeme hits the row ---
+
+    #[test]
+    fn a_mardroeme_special_transforms_a_berserker() {
+        let mut game = Game::new(
+            TestController::new(true, 2),
+            Cards::skellige(&[BERSERKER, MARDROME], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.next_turn(); // P1 plays the Berserker (strength 4)
+        assert_cards(&game, Player::P1, Range::MELEE, &[(BERSERKER, 4)]);
+
+        game.next_turn(); // P2 passes
+        game.next_turn(); // P1 plays Mardroeme -> Berserker becomes Vildkaarl (14)
+        assert_cards(&game, Player::P1, Range::MELEE, &[(VILDKAARL, 14)]);
+        assert_boost(&game, Player::P1, Range::MELEE, Some(Special::Mardrome));
+    }
+
+    #[test]
+    fn a_berserker_played_onto_a_mardroemed_row_transforms_at_once() {
+        // Mardroeme lands first (row boost, no units yet); the Berserker played
+        // afterwards transforms immediately. Play order: Mardroeme, Berserker.
+        let mut game = Game::new(
+            ScriptedController::new(false, &[1, 0]),
+            Cards::skellige(&[BERSERKER, MARDROME], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.next_turn(); // P2 passes
+        game.next_turn(); // Mardroeme special -> melee row boosted, still empty
+        assert_cards(&game, Player::P1, Range::MELEE, &[]);
+        assert_boost(&game, Player::P1, Range::MELEE, Some(Special::Mardrome));
+
+        game.next_turn(); // Berserker -> transforms on arrival into Vildkaarl (14)
+        assert_cards(&game, Player::P1, Range::MELEE, &[(VILDKAARL, 14)]);
+    }
+
+    #[test]
+    fn a_transformed_berserker_never_leaves_its_initial_form_in_the_pile() {
+        let mut game = Game::new(
+            TestController::new(true, 2),
+            Cards::skellige(&[BERSERKER, MARDROME], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.play_round(); // Berserker + Mardroeme -> Vildkaarl on the board
+        assert_cards(&game, Player::P1, Range::MELEE, &[(VILDKAARL, 14)]);
+
+        game.end_round();
+        // Only the transformed Vildkaarl reaches the pile — never the Berserker.
+        assert_cards(&game, Player::P1, Range::MELEE, &[]);
+        assert_pile(&game.p1, &[VILDKAARL]);
+    }
+
+    #[test]
+    fn ermions_mardroeme_ability_transforms_a_young_berserker() {
+        // Ermion carries the Mardroeme ability, so playing him onto the ranged
+        // row transforms the Young Berserker there.
+        let mut game = Game::new(
+            TestController::new(true, 2),
+            Cards::skellige(&[YOUNG_BERSERKER_1, ERMION], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.next_turn(); // Young Berserker (strength 2)
+        assert_cards(&game, Player::P1, Range::RANGED, &[(YOUNG_BERSERKER_1, 2)]);
+
+        game.next_turn(); // P2 passes
+        game.next_turn(); // Ermion -> Young Berserker becomes Young Vildkaarl (8)
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::RANGED,
+            &[(ERMION, 8), (YOUNG_VILDKAARL, 8)],
+        );
+    }
+
+    #[test]
+    fn transformed_young_berserkers_share_a_tight_bond() {
+        // Three Young Berserkers become three Young Vildkaarls, which carry a
+        // tight bond: 8 * 3 = 24 each.
+        let mut game = Game::new(
+            TestController::new(true, 4),
+            Cards::skellige(
+                &[
+                    YOUNG_BERSERKER_1,
+                    YOUNG_BERSERKER_2,
+                    YOUNG_BERSERKER_3,
+                    ERMION,
+                ],
+                &[],
+            ),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.play_round();
+
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::RANGED,
+            &[
+                (ERMION, 8),
+                (YOUNG_VILDKAARL, 24),
+                (YOUNG_VILDKAARL, 24),
+                (YOUNG_VILDKAARL, 24),
+            ],
+        );
+    }
+
+    #[test]
+    fn ermion_and_a_mardroeme_special_together_transform_once() {
+        // Both Mardroeme sources hit the ranged row. Ermion already transforms
+        // the Young Berserker; adding the Mardroeme special changes nothing —
+        // the outcome matches a single source.
+        let mut game = Game::new(
+            ScriptedController::new(false, &[0, 1, 0]).with_range(Range::RANGED),
+            Cards::skellige(&[YOUNG_BERSERKER_1, ERMION, MARDROME], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.next_turn(); // P2 passes
+        game.next_turn(); // Young Berserker
+        game.next_turn(); // Ermion -> transforms it into Young Vildkaarl (8)
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::RANGED,
+            &[(ERMION, 8), (YOUNG_VILDKAARL, 8)],
+        );
+
+        game.next_turn(); // Mardroeme special on the same row -> no further change
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::RANGED,
+            &[(ERMION, 8), (YOUNG_VILDKAARL, 8)],
+        );
     }
 }

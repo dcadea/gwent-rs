@@ -121,7 +121,7 @@ bitflags! {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Special {
     /// Doubles the strength of all [`Card::Unit`] on its row
     CommandersHorn,
@@ -143,7 +143,7 @@ pub enum Special {
 }
 
 /// Does not affect heroes
-#[derive(Clone, Copy, Hash, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 pub enum Weather {
     /// Sets the strength of all [`Range::MELEE`] units to 1
     BitingFrost,

@@ -127,6 +127,10 @@ impl Side {
     pub fn get_ids(&self, range: Range) -> Vec<u16> {
         self.get_row(range).get_ids()
     }
+
+    pub fn get_boost(&self, range: Range) -> Option<Special> {
+        self.get_row(range).get_boost()
+    }
 }
 
 pub struct Strengths<'a> {
