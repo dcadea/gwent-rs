@@ -308,12 +308,14 @@ mod test {
         board::Player,
         card::{Range, Special},
         constants::{
-            ARACHAS_1, ARACHAS_2, ARACHAS_3, BERSERKER, BIRNA_BRAN, BITING_FROST, BLUE_STRIPES_1,
+            ARACHAS_1, ARACHAS_2, ARACHAS_3, BARCLAY_ELS, BERSERKER, BIRNA_BRAN, BITING_FROST,
+            BLUE_STRIPES_1,
             BLUE_STRIPES_2, BOTCHLING, CATAPULT_1, CATAPULT_2, CERYS, CLAN_DIMUN_PIRATE,
             CLEAR_WEATHER, COMMANDERS_HORN, DANDELION, DECOY, DRAGON_HUNTER_1, DRAGON_HUNTER_2,
             DRUMMOND_SHIELDMAIDEN_1, DRUMMOND_SHIELDMAIDEN_2, DRUMMOND_SHIELDMAIDEN_3,
             DUN_BANNER_MEDIC, ERMION, ETOLIAN_ARCHERS_1, ETOLIAN_ARCHERS_2, FIEND, FORKTAIL,
-            HEMDALL, ISENGRIM, KAMBI, KEIRA_METZ, MARDROME, NEKKER_1, NEKKER_2, NEKKER_3, OLGIERD,
+            HEMDALL, IDA_EMEAN, ISENGRIM, KAMBI, KEIRA_METZ, MARDROME, NEKKER_1, NEKKER_2, NEKKER_3,
+            OLGIERD,
             PRINCE_STENNIS, REDANIAN_SOLDIER_1, SCORCH, SIEGE_EXPERT_1, SKELLIGE_STORM, SVANRIGE,
             TORRENTIAL_RAIN, TRISS, VESEMIR, VILDKAARL, VILLENTRETENMERTH, YENNEFER,
             YOUNG_BERSERKER_1, YOUNG_BERSERKER_2, YOUNG_BERSERKER_3, YOUNG_VILDKAARL, ZOLTAN,
@@ -2295,6 +2297,57 @@ mod test {
             Player::P1,
             Range::RANGED,
             &[(ERMION, 8), (YOUNG_VILDKAARL, 8)],
+        );
+    }
+
+    // --- Agile units are placed on the melee or ranged row of the caller's
+    // choosing ---
+
+    #[test]
+    fn an_agile_unit_can_be_placed_on_the_melee_row() {
+        let mut game = Game::new(
+            TestController::new(true, 1), // select_range -> MELEE
+            Cards::skoiatael(&[BARCLAY_ELS], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.play_round();
+
+        assert_cards(&game, Player::P1, Range::MELEE, &[(BARCLAY_ELS, 6)]);
+        assert_cards(&game, Player::P1, Range::RANGED, &[]);
+    }
+
+    #[test]
+    fn an_agile_unit_can_be_placed_on_the_ranged_row() {
+        let mut game = Game::new(
+            ScriptedController::new(true, &[0]).with_range(Range::RANGED),
+            Cards::skoiatael(&[BARCLAY_ELS], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.play_round();
+
+        assert_cards(&game, Player::P1, Range::RANGED, &[(BARCLAY_ELS, 6)]);
+        assert_cards(&game, Player::P1, Range::MELEE, &[]);
+    }
+
+    #[test]
+    fn an_agile_units_ability_applies_to_the_row_it_joins() {
+        // Olgierd (agile, morale) placed on the ranged row lifts Ida there.
+        let mut game = Game::new(
+            ScriptedController::new(true, &[0, 0]).with_range(Range::RANGED),
+            Cards::skoiatael(&[OLGIERD, IDA_EMEAN], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.play_round();
+
+        // Ida 6 + 1 (morale) = 7; Olgierd 6 (no self-boost).
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::RANGED,
+            &[(IDA_EMEAN, 7), (OLGIERD, 6)],
         );
     }
 }

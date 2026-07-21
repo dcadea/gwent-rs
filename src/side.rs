@@ -65,6 +65,7 @@ impl Side {
     }
 
     pub fn put_agile_unit(&mut self, unit: Unit, range: Range) {
+        assert!(range == Range::MELEE || range == Range::RANGED);
         self.get_row_mut(range).put_unit(unit);
     }
 

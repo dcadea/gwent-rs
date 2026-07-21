@@ -7,6 +7,7 @@ use rand::{rng, seq::SliceRandom};
 
 use crate::card::{Ability, Card, Range, Special, Strength, Unit, Weather};
 
+#[derive(Clone)]
 enum Faction {
     Monsters,
     Nilfgaard,
@@ -511,42 +512,19 @@ mod test {
         }
 
         pub fn monsters(hand: &[u16], deck: &[u16]) -> Self {
-            let mut lib = Library::default();
-
-            let hand = get_from_lib(hand, &mut lib, Faction::Monsters);
-            let deck = get_from_lib(deck, &mut lib, Faction::Monsters);
-
-            Self {
-                hand,
-                deck,
-                pile: Vec::default(),
-            }
+            Self::new_cards(hand, deck, Faction::Monsters)
         }
 
         pub fn northern_realms(hand: &[u16], deck: &[u16]) -> Self {
-            let mut lib = Library::default();
-
-            let hand = get_from_lib(hand, &mut lib, Faction::NorthernRealms);
-            let deck = get_from_lib(deck, &mut lib, Faction::NorthernRealms);
-
-            Self {
-                hand,
-                deck,
-                pile: Vec::default(),
-            }
+            Self::new_cards(hand, deck, Faction::NorthernRealms)
         }
 
         pub fn skellige(hand: &[u16], deck: &[u16]) -> Self {
-            let mut lib = Library::default();
+            Self::new_cards(hand, deck, Faction::Skellige)
+        }
 
-            let hand = get_from_lib(hand, &mut lib, Faction::Skellige);
-            let deck = get_from_lib(deck, &mut lib, Faction::Skellige);
-
-            Self {
-                hand,
-                deck,
-                pile: Vec::default(),
-            }
+        pub fn skoiatael(hand: &[u16], deck: &[u16]) -> Self {
+            Self::new_cards(hand, deck, Faction::Skoiatael)
         }
 
         /// Builds a hand/deck from card ids regardless of faction, so a single
@@ -557,6 +535,19 @@ mod test {
             Self {
                 hand: take_any(hand, &mut lib),
                 deck: take_any(deck, &mut lib),
+                pile: Vec::default(),
+            }
+        }
+
+        fn new_cards(hand: &[u16], deck: &[u16], faction: Faction) -> Self {
+            let mut lib = Library::default();
+
+            let hand = get_from_lib(hand, &mut lib, faction.clone());
+            let deck = get_from_lib(deck, &mut lib, faction);
+
+            Self {
+                hand,
+                deck,
                 pile: Vec::default(),
             }
         }
