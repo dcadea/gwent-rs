@@ -309,16 +309,16 @@ mod test {
         card::{Range, Special},
         constants::{
             ARACHAS_1, ARACHAS_2, ARACHAS_3, BARCLAY_ELS, BERSERKER, BIRNA_BRAN, BITING_FROST,
-            BLUE_STRIPES_1,
-            BLUE_STRIPES_2, BOTCHLING, CATAPULT_1, CATAPULT_2, CERYS, CLAN_DIMUN_PIRATE,
-            CLEAR_WEATHER, COMMANDERS_HORN, DANDELION, DECOY, DRAGON_HUNTER_1, DRAGON_HUNTER_2,
-            DRUMMOND_SHIELDMAIDEN_1, DRUMMOND_SHIELDMAIDEN_2, DRUMMOND_SHIELDMAIDEN_3,
-            DUN_BANNER_MEDIC, ERMION, ETOLIAN_ARCHERS_1, ETOLIAN_ARCHERS_2, FIEND, FORKTAIL,
-            HEMDALL, IDA_EMEAN, ISENGRIM, KAMBI, KEIRA_METZ, MARDROME, NEKKER_1, NEKKER_2, NEKKER_3,
-            OLGIERD,
-            PRINCE_STENNIS, REDANIAN_SOLDIER_1, SCORCH, SIEGE_EXPERT_1, SKELLIGE_STORM, SVANRIGE,
-            TORRENTIAL_RAIN, TRISS, VESEMIR, VILDKAARL, VILLENTRETENMERTH, YENNEFER,
-            YOUNG_BERSERKER_1, YOUNG_BERSERKER_2, YOUNG_BERSERKER_3, YOUNG_VILDKAARL, ZOLTAN,
+            BLUE_STRIPES_1, BLUE_STRIPES_2, BOTCHLING, CATAPULT_1, CATAPULT_2, CERYS,
+            CLAN_DIMUN_PIRATE, CLEAR_WEATHER, COMMANDERS_HORN, DANDELION, DECOY, DRAGON_HUNTER_1,
+            DRAGON_HUNTER_2, DRUMMOND_SHIELDMAIDEN_1, DRUMMOND_SHIELDMAIDEN_2,
+            DRUMMOND_SHIELDMAIDEN_3, DUN_BANNER_MEDIC, ERMION, ETOLIAN_ARCHERS_1,
+            ETOLIAN_ARCHERS_2, FIEND, FORKTAIL, HEMDALL, IDA_EMEAN, IMPENETRABLE_FOG,
+            IMPERA_BRIGADE_1, IMPERA_BRIGADE_2, ISENGRIM, KAMBI, KEIRA_METZ, MARDROME, NEKKER_1,
+            NEKKER_2, NEKKER_3, OLGIERD, PRINCE_STENNIS, REDANIAN_SOLDIER_1, SCORCH,
+            SIEGE_EXPERT_1, SKELLIGE_STORM, SVANRIGE, TORRENTIAL_RAIN, TRISS, VESEMIR, VILDKAARL,
+            VILLENTRETENMERTH, YENNEFER, YOUNG_BERSERKER_1, YOUNG_BERSERKER_2, YOUNG_BERSERKER_3,
+            YOUNG_VILDKAARL, ZOLTAN,
         },
         deck::Cards,
         game::{Controller, Game, Turn},
@@ -2348,6 +2348,41 @@ mod test {
             Player::P1,
             Range::RANGED,
             &[(IDA_EMEAN, 7), (OLGIERD, 6)],
+        );
+    }
+
+    #[test]
+    fn impenetrable_fog_saps_the_ranged_row() {
+        let mut game = Game::new(
+            TestController::new(true, 2),
+            Cards::northern_realms(&[KEIRA_METZ, IMPENETRABLE_FOG], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.next_turn(); // Keira on the ranged row
+        assert_cards(&game, Player::P1, Range::RANGED, &[(KEIRA_METZ, 5)]);
+
+        game.next_turn(); // P2 passes
+        game.next_turn(); // Impenetrable Fog -> ranged row drops to 1
+        assert_cards(&game, Player::P1, Range::RANGED, &[(KEIRA_METZ, 1)]);
+    }
+
+    #[test]
+    fn nilfgaard_impera_brigade_shares_a_tight_bond() {
+        // Two Impera Brigade Guards (Nilfgaard, tight bond): 3 * 2 = 6 each.
+        let mut game = Game::new(
+            TestController::new(true, 2),
+            Cards::nilfgaard(&[IMPERA_BRIGADE_1, IMPERA_BRIGADE_2], &[]),
+            Cards::monsters(&[], &[]),
+        );
+
+        game.play_round();
+
+        assert_cards(
+            &game,
+            Player::P1,
+            Range::MELEE,
+            &[(IMPERA_BRIGADE_1, 6), (IMPERA_BRIGADE_2, 6)],
         );
     }
 }

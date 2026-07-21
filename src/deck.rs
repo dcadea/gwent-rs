@@ -7,7 +7,7 @@ use rand::{rng, seq::SliceRandom};
 
 use crate::card::{Ability, Card, Range, Special, Strength, Unit, Weather};
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 enum Faction {
     Monsters,
     Nilfgaard,
@@ -527,6 +527,10 @@ mod test {
             Self::new_cards(hand, deck, Faction::Skoiatael)
         }
 
+        pub fn nilfgaard(hand: &[u16], deck: &[u16]) -> Self {
+            Self::new_cards(hand, deck, Faction::Nilfgaard)
+        }
+
         /// Builds a hand/deck from card ids regardless of faction, so a single
         /// row can mix neutral, faction and special cards freely.
         pub fn mixed(hand: &[u16], deck: &[u16]) -> Self {
@@ -542,7 +546,7 @@ mod test {
         fn new_cards(hand: &[u16], deck: &[u16], faction: Faction) -> Self {
             let mut lib = Library::default();
 
-            let hand = get_from_lib(hand, &mut lib, faction.clone());
+            let hand = get_from_lib(hand, &mut lib, faction);
             let deck = get_from_lib(deck, &mut lib, faction);
 
             Self {
@@ -573,7 +577,7 @@ mod test {
 
         let mut faction_cards: Vec<Card> = ids
             .iter()
-            .filter_map(|id| lib.get_mut(&f).remove(id))
+            .filter_map(|id| lib.get_mut(f).remove(id))
             .collect();
 
         collected.append(&mut faction_cards);
@@ -589,7 +593,7 @@ mod test {
     }
 
     impl Library {
-        fn get_mut(&mut self, f: &Faction) -> &mut HashMap<u16, Card> {
+        fn get_mut(&mut self, f: Faction) -> &mut HashMap<u16, Card> {
             match f {
                 Faction::Monsters => &mut self.monsters,
                 Faction::Nilfgaard => &mut self.nilfgaard,
